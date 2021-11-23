@@ -181,7 +181,7 @@ struct FPR_PARSE {
    }
 };
 
-template <uint32_t off, uint32_t width>
+template <uint32_t off, uint32_t width, uint32_t align = 0>
 struct UIMM_PARSE {
    constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
 
@@ -191,14 +191,15 @@ struct UIMM_PARSE {
       constexpr bool valid = (1 << width) > val;
       static_assert(valid, "Invalid range for UIMM");
       if constexpr (valid) {
-         return shift<val, off, width>();
+         constexpr uint32_t align_mask = ~((1 << align) - 1);
+         return shift<val & align_mask, off, width>();
       } else {
          return std::nullopt;
       }
    }
 };
 
-template <uint32_t off, uint32_t width>
+template <uint32_t off, uint32_t width, uint32_t align = 0>
 struct SIMM_PARSE {
    constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
 
@@ -210,7 +211,8 @@ struct SIMM_PARSE {
       constexpr bool valid = (val >= min) && (val <= max);
       static_assert(valid, "Invalid range for SIMM");
       if (valid) {
-         return shift<static_cast<uint32_t>(val), off, width>();
+         constexpr uint32_t align_mask = ~((1 << align) - 1);
+         return shift<static_cast<uint32_t>(val) & align_mask, off, width>();
       } else {
          return std::nullopt;
       }
@@ -273,58 +275,149 @@ struct STRING_MATCH {
    constexpr static uint32_t val = on_match;
 };
 
-struct ADDI_FAMILY {
+
+//
+// Reg-Reg-IMM instructions
+//
+template <template <uint32_t off, uint32_t width> typename imm_parse>
+struct RRUI_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    GPR_PARSE<6>, CHARACTER_SEPARATOR<','>,
                                    GPR_PARSE<11>, CHARACTER_SEPARATOR<','>,
-                                   SIMM_PARSE<16, 16>, WHITESPACE_SEPARATOR,
+                                   imm_parse<16, 16>, WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
 
-struct ADDI : ADDI_FAMILY {
+struct ADDI : RRUI_FAMILY<SIMM_PARSE> {
    using match_groups = std::tuple<STRING_MATCH<shift<14, 0, 6>(),
                                                 'a', 'd', 'd', 'i'>>;
 };
 
-struct ADDIC : ADDI_FAMILY {
+struct ADDIC : RRUI_FAMILY<SIMM_PARSE> {
    using match_groups = std::tuple<STRING_MATCH<shift<12, 0, 6>(),
                                                 'a', 'd', 'd', 'i', 'c'>>;
 };
 
-struct ADDIC_DOT : ADDI_FAMILY {
+struct ADDIC_DOT : RRUI_FAMILY<SIMM_PARSE> {
    using match_groups = std::tuple<STRING_MATCH<shift<13, 0, 6>(),
                                                 'a', 'd', 'd', 'i', 'c', '.'>>;
 };
 
-struct ADDIS : ADDI_FAMILY {
+struct ADDIS : RRUI_FAMILY<SIMM_PARSE> {
    using match_groups = std::tuple<STRING_MATCH<shift<15, 0, 6>(),
                                                 'a', 'd', 'd', 'i', 's'>>;
 };
 
-struct ADD {
+struct ANDI_DOT : RRUI_FAMILY<UIMM_PARSE> {
+   using match_groups = std::tuple<STRING_MATCH<shift<28, 0, 6>(),
+                                                'a', 'n', 'd', 'i', '.'>>;
+};
+
+struct ANDIS_DOT : RRUI_FAMILY<UIMM_PARSE> {
+   using match_groups = std::tuple<STRING_MATCH<shift<29, 0, 6>(),
+                                                'a', 'n', 'd', 'i', 's', '.'>>;
+};
+
+
+//
+// Reg-Reg-Reg instructions
+//
+struct RRR_FAMILY {
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   GPR_PARSE<6>, CHARACTER_SEPARATOR<','>,
+                                   GPR_PARSE<11>, CHARACTER_SEPARATOR<','>,
+                                   GPR_PARSE<16>, WHITESPACE_SEPARATOR,
+                                   TERMINATION_PARSE>;
+};
+
+struct ADD : RRR_FAMILY {
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<266, 22, 9>(),
                                                 'a', 'd', 'd'>,
                                    CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
                                    CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
-
-   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   GPR_PARSE<6>, CHARACTER_SEPARATOR<','>,
-                                   GPR_PARSE<11>, CHARACTER_SEPARATOR<','>,
-                                   GPR_PARSE<16>, WHITESPACE_SEPARATOR,
-                                   TERMINATION_PARSE>;
 };
 
-struct OR {
+struct ADDC : RRR_FAMILY {
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<10, 22, 9>(),
+                                                'a', 'd', 'd', 'c'>,
+                                   CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
+};
+
+struct ADDE : RRR_FAMILY {
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<138, 22, 9>(),
+                                                'a', 'd', 'd', 'e'>,
+                                   CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
+};
+
+struct AND : RRR_FAMILY {
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<28, 21, 10>(),
+                                                'a', 'n', 'd'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
+};
+
+struct ANDC : RRR_FAMILY {
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<60, 21, 10>(),
+                                                'a', 'n', 'd', 'c'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
+};
+
+struct OR : RRR_FAMILY {
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<444, 21, 10>(),
                                                 'o', 'r'>,
                                    CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
+};
 
+
+//
+// Reg-Reg-0 instructions
+//
+struct RR0_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    GPR_PARSE<6>, CHARACTER_SEPARATOR<','>,
-                                   GPR_PARSE<11>, CHARACTER_SEPARATOR<','>,
-                                   GPR_PARSE<16>, WHITESPACE_SEPARATOR,
+                                   GPR_PARSE<11>, WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
+
+struct ADDME : RR0_FAMILY {
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<234, 22, 9>(),
+                                                'a', 'd', 'd', 'm', 'e'>,
+                                   CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
+};
+
+struct ADDZE : RR0_FAMILY {
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<202, 22, 9>(),
+                                                'a', 'd', 'd', 'z', 'e'>,
+                                   CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
+};
+
+
+//
+// Branch instructions
+//
+struct BRANCH {
+   using match_groups = std::tuple<CHARACTER_MATCH<shift<18, 0, 6>(), 'b'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>,
+                                   CHARACTER_MATCH<shift<1, 30, 1>(), 'a'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   SIMM_PARSE<6, 26, 2>, WHITESPACE_SEPARATOR,
+                                   TERMINATION_PARSE>;
+};
+
+struct BRANCH_COND {
+   using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>(), 'b', 'c'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>,
+                                   CHARACTER_MATCH<shift<1, 30, 1>(), 'a'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   UIMM_PARSE<6, 5>, CHARACTER_SEPARATOR<','>,
+                                   UIMM_PARSE<11, 5>, CHARACTER_SEPARATOR<','>,
+                                   SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR,
+                                   TERMINATION_PARSE>;
+};
+
 
 template <typename MG0, typename... MG, char... c>
 constexpr bool run_matchgroups(std::tuple<MG0, MG...>, cts<c...>) {
@@ -414,8 +507,9 @@ constexpr uint32_t try_parse_inst(std::tuple<Inst0, Inst...>, cts<c...>) {
 
 template <char... c>
 constexpr uint32_t parse(cts<c...>) {
-   using instr_list = std::tuple<ADD, OR, ADDI, ADDIC, ADDIC_DOT, ADDIS>;
-   
+   using instr_list = std::tuple<ADDI, ADDIC, ADDIC_DOT, ADDIS, ANDI_DOT,
+                                 ANDIS_DOT, ADD, ADDC, ADDE, AND, ANDC, OR,
+                                 ADDME, ADDZE, BRANCH, BRANCH_COND>;   
    return try_parse_inst(instr_list {}, cts<c...> {});
 }
 }
