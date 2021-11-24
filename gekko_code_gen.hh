@@ -12,6 +12,7 @@ namespace gekko_code_gen {
 enum class ParseGroupType {
    SEPARATOR,
    PARSER,
+   ARGUMENT,
    TERMINATOR,
 };
 
@@ -129,46 +130,21 @@ constexpr static uint32_t shift() {
    return ((val & gen_mask<width>()) << (32 - off - width));
 }
 
-template <uint32_t off>
-struct GPR_PARSE {
+template <uint32_t off, uint32_t width, char... header>
+struct REG_PARSE {
    constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
 
    template <char... c>
    constexpr static std::optional<uint32_t> parse(cts<c...>) {
-      static_assert(sizeof...(c) > 1, "Malformed GPR. Must be of the form 'rX'");
-      if constexpr (sizeof...(c) > 1) {
-         static_assert(nth_char<0, c...>::val == 'r', "Malformed GPR. Must start with 'r'");
-         if constexpr (nth_char<0, c...>::val == 'r') {
-            constexpr uint32_t regnum = decimal_atoi((typename cts<c...>::trim<1>) {});
-            static_assert(regnum < 32, "Invalid GPR number. Only valid numbers 0-31");
-            if constexpr (regnum < 32) {
-               return shift<regnum, off, 5>();
-            } else {
-               return 0;
-            }
-         } else {
-            return 0;
-         }
-      } else {
-         return 0;
-      }
-   }
-};
-
-template <uint32_t off>
-struct FPR_PARSE {
-   constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
-
-   template <char... c>
-   constexpr static std::optional<uint32_t> parse(cts<c...>) {
-      static_assert(sizeof...(c) > 1, "Malformed FPR. Must be of the form 'fX'");
-      if constexpr (sizeof...(c) > 1) {
-         static_assert(nth_char<0, c...>::val == 'f', "Malformed GPR. Must start with 'f'");
-         if constexpr (nth_char<0, c...>::val == 'f') {
-            constexpr uint32_t regnum = decimal_atoi((typename cts<c...>::trim<1>) {});
-            static_assert(regnum < 32, "Invalid FPR number. Only valid numbers 0-31");
-            if constexpr (regnum < 32) {
-               return shift<regnum, off, 5>();
+      if constexpr (sizeof...(c) > sizeof...(header)) {
+         if constexpr (cts<header...>::streq(typename cts<c...>::substr<0, sizeof...(header)> {})) {
+            constexpr auto regnum = try_decimal_atoi((typename cts<c...>::trim<sizeof...(header)>) {});
+            if constexpr (regnum) {
+               if constexpr (regnum.value() < (1 << width)) {
+                  return shift<regnum.value(), off, width>();
+               } else {
+                  return std::nullopt;
+               }
             } else {
                return std::nullopt;
             }
@@ -181,19 +157,32 @@ struct FPR_PARSE {
    }
 };
 
+template <uint32_t off>
+struct GPR_PARSE : REG_PARSE<off, 5, 'r'> {};
+
+template <uint32_t off>
+struct FPR_PARSE : REG_PARSE<off, 5, 'f'> {};
+
+template <uint32_t off>
+struct CR_PARSE : REG_PARSE<off, 3, 'c', 'r'> {};
+
 template <uint32_t off, uint32_t width, uint32_t align = 0>
 struct UIMM_PARSE {
    constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
 
    template <char... c>
    constexpr static std::optional<uint32_t> parse(cts<c...>) {
-      constexpr uint32_t val = atoi_full(cts<c...> {});
-      constexpr bool valid = (1 << width) > val;
-      static_assert(valid, "Invalid range for UIMM");
-      if constexpr (valid) {
-         constexpr uint32_t align_mask = ~((1 << align) - 1);
-         return shift<val & align_mask, off, width>();
-      } else {
+      constexpr auto res = try_atoi_full(cts<c...> {});
+      if constexpr (res) {
+         constexpr uint32_t val = res.value();
+         constexpr bool valid = (1 << width) > val;
+         if constexpr (valid) {
+            constexpr uint32_t align_mask = ~((1 << align) - 1);
+            return shift<val & align_mask, off, width>();
+         } else {
+            return std::nullopt;
+         }
+      } else { 
          return std::nullopt;
       }
    }
@@ -205,17 +194,69 @@ struct SIMM_PARSE {
 
    template <char... c>
    constexpr static std::optional<uint32_t> parse(cts<c...>) {
-      constexpr int32_t val = static_cast<int32_t>(atoi_full(cts<c...> {}));
-      constexpr int32_t max = static_cast<int32_t>(1 << (width - 1)) - 1;
-      constexpr int32_t min = -(max + 1);
-      constexpr bool valid = (val >= min) && (val <= max);
-      static_assert(valid, "Invalid range for SIMM");
-      if (valid) {
-         constexpr uint32_t align_mask = ~((1 << align) - 1);
-         return shift<static_cast<uint32_t>(val) & align_mask, off, width>();
+      constexpr auto res = try_atoi_full(cts<c...> {});
+      if constexpr (res) {
+         constexpr int32_t val = static_cast<int32_t>(res.value());
+         constexpr int32_t max = static_cast<int32_t>(1 << (width - 1)) - 1;
+         constexpr int32_t min = -(max + 1);
+         constexpr bool valid = (val >= min) && (val <= max);
+         if constexpr (valid) {
+            constexpr uint32_t align_mask = ~((1 << align) - 1);
+            return shift<static_cast<uint32_t>(val) & align_mask, off, width>();
+         } else {
+            return std::nullopt;
+         }
       } else {
          return std::nullopt;
       }
+   }
+};
+
+template <uint32_t off, uint32_t width>
+struct CR0_BIT_PARSE {
+   constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
+   
+   template <char... c>
+   constexpr static std::optional<uint32_t> parse(cts<c...>) {
+      if constexpr (cts<c...>::streq(cts<'l', 't'> {})) {
+         return shift<0, off, width>();
+      } else if constexpr (cts<c...>::streq(cts<'g', 't'> {})) {
+         return shift<1, off, width>();
+      } else if constexpr (cts<c...>::streq(cts<'e', 'q'> {})) {
+         return shift<2, off, width>();
+      } else if constexpr (cts<c...>::streq(cts<'s', 'o'> {})) {
+         return shift<3, off, width>();
+      } else {
+         return std::nullopt;
+      }
+   }
+};
+
+template <typename... Parsers>
+struct PARSE_ANY {};
+
+template <typename Parser0, typename Parser1, typename... Parsers>
+struct PARSE_ANY<Parser0, Parser1, Parsers...> {
+   constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
+
+   template <char... c>
+   constexpr static std::optional<uint32_t> parse(cts<c...>) {
+      constexpr auto res0 = Parser0::parse(cts<c...> {});
+      if constexpr (res0) {
+         return res0;
+      } else {
+         return PARSE_ANY<Parser1, Parsers...>::parse(cts<c...> {});
+      }
+   }
+};
+
+template <typename Parser0>
+struct PARSE_ANY<Parser0> {
+   constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
+
+   template <char... c>
+   constexpr static std::optional<uint32_t> parse(cts<c...>) {
+      return Parser0::parse(cts<c...> {});
    }
 };
 
@@ -227,6 +268,40 @@ struct TERMINATION_PARSE {
       static_assert(sizeof...(c) == 0, "Failed to find end-of-line.");
       return 0;
    }
+};
+
+
+//
+// Argument
+//
+template <bool optional, typename Parser, typename Separator>
+struct ARGUMENT {
+   constexpr static ParseGroupType p_type = ParseGroupType::ARGUMENT;
+   static_assert(Parser::p_type == ParseGroupType::PARSER,
+                 "Invalid argument definition, Parser is not of type PARSER");
+   static_assert(Separator::p_type == ParseGroupType::SEPARATOR,
+                 "Invalid argument definition, Separator is not of type SEPARATOR");
+
+   template <char... c>
+   constexpr static std::optional<uint32_t> parse(cts<c...>) {
+      constexpr auto parse_str = Separator::clipto(cts<c...> {});
+      return Parser::parse(parse_str);
+   }
+
+   template <char... c>
+   constexpr static auto eat(cts<c...>) {
+      return Separator::eat(Separator::seekto(cts<c...>{}));
+   }
+
+   constexpr static bool is_optional = optional;
+};
+
+template <typename Parser, typename Separator>
+struct REQUIRED_ARG : ARGUMENT<false, Parser, Separator> {};
+
+template <uint32_t def, typename Parser, typename Separator>
+struct OPTIONAL_ARG : ARGUMENT<true, Parser, Separator> {
+   constexpr static uint32_t default_val = def;
 };
 
 
@@ -282,9 +357,9 @@ struct STRING_MATCH {
 template <template <uint32_t off, uint32_t width> typename imm_parse>
 struct RRUI_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   GPR_PARSE<6>, CHARACTER_SEPARATOR<','>,
-                                   GPR_PARSE<11>, CHARACTER_SEPARATOR<','>,
-                                   imm_parse<16, 16>, WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<GPR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<imm_parse<16, 16>, WHITESPACE_SEPARATOR>,
                                    TERMINATION_PARSE>;
 };
 
@@ -324,9 +399,9 @@ struct ANDIS_DOT : RRUI_FAMILY<UIMM_PARSE> {
 //
 struct RRR_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   GPR_PARSE<6>, CHARACTER_SEPARATOR<','>,
-                                   GPR_PARSE<11>, CHARACTER_SEPARATOR<','>,
-                                   GPR_PARSE<16>, WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<GPR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<16>, WHITESPACE_SEPARATOR>,
                                    TERMINATION_PARSE>;
 };
 
@@ -375,8 +450,8 @@ struct OR : RRR_FAMILY {
 //
 struct RR0_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   GPR_PARSE<6>, CHARACTER_SEPARATOR<','>,
-                                   GPR_PARSE<11>, WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<GPR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, WHITESPACE_SEPARATOR>,
                                    TERMINATION_PARSE>;
 };
 
@@ -403,7 +478,7 @@ struct BRANCH {
                                    CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>,
                                    CHARACTER_MATCH<shift<1, 30, 1>(), 'a'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   SIMM_PARSE<6, 26, 2>, WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<SIMM_PARSE<6, 26, 2>, WHITESPACE_SEPARATOR>,
                                    TERMINATION_PARSE>;
 };
 
@@ -412,12 +487,87 @@ struct BRANCH_COND {
                                    CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>,
                                    CHARACTER_MATCH<shift<1, 30, 1>(), 'a'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   UIMM_PARSE<6, 5>, CHARACTER_SEPARATOR<','>,
-                                   UIMM_PARSE<11, 5>, CHARACTER_SEPARATOR<','>,
-                                   SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<UIMM_PARSE<6, 5>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<UIMM_PARSE<11, 5>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
                                    TERMINATION_PARSE>;
 };
 
+struct BRANCH_CTR_COND {
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>(),
+                                                'b', 'c', 'c', 't', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<UIMM_PARSE<6, 5>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<11, 5>, CR0_BIT_PARSE<11, 5>>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct BRANCH_LR_COND {
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>(),
+                                                'b', 'c', 'l', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<UIMM_PARSE<6, 5>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<11, 5>, CR0_BIT_PARSE<11, 5>>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+
+//
+// CMP instructions
+//
+struct CMP {
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>(), 'c', 'm', 'p'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<UIMM_PARSE<10, 1>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<16>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct CMPI {
+   using match_groups = std::tuple<STRING_MATCH<shift<11, 0, 6>(), 'c', 'm', 'p', 'i'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<UIMM_PARSE<10, 1>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct CMPL {
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<32, 21, 11>(),
+                                                'c', 'm', 'p', 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<UIMM_PARSE<10, 1>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<16>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct CMPLI {
+   using match_groups = std::tuple<STRING_MATCH<shift<11, 0, 6>(), 'c', 'm', 'p', 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<UIMM_PARSE<10, 1>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<UIMM_PARSE<16, 16>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct CMPW {
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>(), 'c', 'm', 'p', 'w'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   OPTIONAL_ARG<0, CR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<16>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
 
 template <typename MG0, typename... MG, char... c>
 constexpr bool run_matchgroups(std::tuple<MG0, MG...>, cts<c...>) {
@@ -468,11 +618,23 @@ template <typename PG0, typename... PG, char... c>
 constexpr uint32_t parse_pg_recurse(std::tuple<PG0, PG...>, cts<c...>) {
    if constexpr (PG0::p_type == ParseGroupType::SEPARATOR) {
       return parse_pg_recurse(std::tuple<PG...> {}, PG0::eat(cts<c...> {}));
+   } else if constexpr (PG0::p_type == ParseGroupType::ARGUMENT) {
+      constexpr auto parsed_value = PG0::parse(cts<c...> {});
+      static_assert(parsed_value || PG0::is_optional, "Failed to parse required argument PG0");
+      if constexpr (parsed_value) {
+         return parsed_value.value() |
+                parse_pg_recurse(std::tuple<PG...> {}, PG0::eat(cts<c...> {}));
+      } else if constexpr (PG0::is_optional) {
+         return PG0::default_val | parse_pg_recurse(std::tuple<PG...> {}, cts<c...> {});
+      } else {
+         return 0;
+      }
    } else if constexpr (PG0::p_type == ParseGroupType::PARSER) {
       static_assert(sizeof...(PG) > 0, "Instruction ends in bad parser type.");
       using next_sep = std::decay_t<decltype(std::get<0>(std::tuple<PG...> {}))>;
       constexpr auto clipped_str = next_sep::clipto(cts<c...> {});
       constexpr auto parsed_value = PG0::parse(clipped_str);
+      static_assert(parsed_value, "Failed to parse on PG0");
       if constexpr (parsed_value) {
          return parsed_value.value() |
                 parse_pg_recurse(std::tuple<PG...> {}, next_sep::seekto(cts<c...> {}));
@@ -494,11 +656,11 @@ template <typename Inst0, typename... Inst, char... c>
 constexpr uint32_t try_parse_inst(std::tuple<Inst0, Inst...>, cts<c...>) {
    constexpr auto header = WHITESPACE_SEPARATOR::clipto(cts<c...> {});
    constexpr bool match_result = run_match<Inst0>(header);
-   static_assert(match_result || sizeof...(Inst) > 0, "Failed to parse instruction");
+   static_assert(match_result || sizeof...(Inst) > 0, "Failed to parse instruction head");
    if constexpr (match_result) {
       constexpr uint32_t base = get_match_data<Inst0>(header);
       return base | parse_inst_body<Inst0>(eat_match<Inst0>(cts<c...> {}));
-   } else if (sizeof...(Inst) > 0) {
+   } else if constexpr (sizeof...(Inst) > 0) {
       return try_parse_inst(std::tuple<Inst...> {}, cts<c...>{});
    } else {
       return 0;
@@ -509,7 +671,8 @@ template <char... c>
 constexpr uint32_t parse(cts<c...>) {
    using instr_list = std::tuple<ADDI, ADDIC, ADDIC_DOT, ADDIS, ANDI_DOT,
                                  ANDIS_DOT, ADD, ADDC, ADDE, AND, ANDC, OR,
-                                 ADDME, ADDZE, BRANCH, BRANCH_COND>;   
+                                 ADDME, ADDZE, BRANCH, BRANCH_COND, BRANCH_CTR_COND,
+                                 BRANCH_LR_COND, CMP, CMPI, CMPL, CMPLI, CMPW>;
    return try_parse_inst(instr_list {}, cts<c...> {});
 }
 }
