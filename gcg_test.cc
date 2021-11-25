@@ -44,4 +44,5 @@ int main() {
    std::cout << l12.as_arr << " => " << std::hex << i12 << std::endl;
    std::cout << l13.as_arr << " => " << std::hex << i13 << std::endl;
    std::cout << l14.as_arr << " => " << std::hex << i14 << std::endl;
+   std::cout << std::hex << gekko_code_gen::parse(GEN_STR("blelrl")) << std::endl;
 }

@@ -510,6 +510,66 @@ struct BRANCH_COND {
                                    TERMINATION_PARSE>;
 };
 
+struct BEQ {
+   using lookup_key = cts<'b', 'e', 'q'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
+                                                shift<12, 6, 5>() | shift<2, 11, 5>(),
+                                                'b', 'e', 'q'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct BNE {
+   using lookup_key = cts<'b', 'n', 'e'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
+                                                shift<4, 6, 5>() | shift<2, 11, 5>(),
+                                                'b', 'n', 'e'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct BLT {
+   using lookup_key = cts<'b', 'l', 't'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
+                                                shift<12, 6, 5>() | shift<0, 11, 5>(),
+                                                'b', 'l', 't'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct BGE {
+   using lookup_key = cts<'b', 'g', 'e'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
+                                                shift<4, 6, 5>() | shift<0, 11, 5>(),
+                                                'b', 'g', 'e'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct BGT {
+   using lookup_key = cts<'b', 'g', 't'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
+                                                shift<12, 6, 5>() | shift<1, 11, 5>(),
+                                                'b', 'g', 't'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct BLE {
+   using lookup_key = cts<'b', 'l', 'e'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
+                                                shift<4, 6, 5>() | shift<1, 11, 5>(),
+                                                'b', 'l', 'e'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
 struct BRANCH_CTR_COND {
    using lookup_key = cts<'b', 'c', 'c', 't', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>(),
@@ -519,6 +579,75 @@ struct BRANCH_CTR_COND {
                                    REQUIRED_ARG<UIMM_PARSE<6, 5>, CHARACTER_SEPARATOR<','>>,
                                    REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<11, 5>, CR0_BIT_PARSE<11, 5>>, CHARACTER_SEPARATOR<','>>,
                                    REQUIRED_ARG<SIMM_PARSE<16, 16, 2>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct BCTR {
+   using lookup_key = cts<'b', 'c', 't', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>() | shift<20, 6, 5>(),
+                                                'b', 'c', 't', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   TERMINATION_PARSE>;
+};
+
+struct BEQCTR {
+   using lookup_key = cts<'b', 'e', 'q', 'c', 't', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>() |
+                                                shift<12, 6, 5>() | shift<2, 11, 5>(),
+                                                'b', 'e', 'q', 'c', 't', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   TERMINATION_PARSE>;
+};
+
+struct BNECTR {
+   using lookup_key = cts<'b', 'n', 'e', 'c', 't', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>() |
+                                                shift<4, 6, 5>() | shift<2, 11, 5>(),
+                                                'b', 'n', 'e', 'c', 't', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   TERMINATION_PARSE>;
+};
+
+struct BLTCTR {
+   using lookup_key = cts<'b', 'l', 't', 'c', 't', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>() |
+                                                shift<12, 6, 5>() | shift<0, 11, 5>(),
+                                                'b', 'l', 't', 'c', 't', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   TERMINATION_PARSE>;
+};
+
+struct BGECTR {
+   using lookup_key = cts<'b', 'g', 'e', 'c', 't', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>() |
+                                                shift<4, 6, 5>() | shift<0, 11, 5>(),
+                                                'b', 'g', 'e', 'c', 't', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   TERMINATION_PARSE>;
+};
+
+struct BGTCTR {
+   using lookup_key = cts<'b', 'g', 't', 'c', 't', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>() |
+                                                shift<12, 6, 5>() | shift<1, 11, 5>(),
+                                                'b', 'g', 't', 'c', 't', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   TERMINATION_PARSE>;
+};
+
+struct BLECTR {
+   using lookup_key = cts<'b', 'l', 'e', 'c', 't', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>() |
+                                                shift<4, 6, 5>() | shift<1, 11, 5>(),
+                                                'b', 'l', 'e', 'c', 't', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
 
@@ -537,7 +666,8 @@ struct BRANCH_LR_COND {
 struct BLR {
    using lookup_key = cts<'b', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() | shift<20, 6, 5>(),
-                                                'b', 'l', 'r'>>;
+                                                'b', 'l', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
@@ -546,7 +676,8 @@ struct BEQLR {
    using lookup_key = cts<'b', 'e', 'q', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<12, 6, 5>() | shift<2, 11, 5>(),
-                                                'b', 'e', 'q', 'l', 'r'>>;
+                                                'b', 'e', 'q', 'l', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
@@ -555,7 +686,8 @@ struct BNELR {
    using lookup_key = cts<'b', 'n', 'e', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<4, 6, 5>() | shift<2, 11, 5>(),
-                                                'b', 'n', 'e', 'l', 'r'>>;
+                                                'b', 'n', 'e', 'l', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
@@ -564,7 +696,8 @@ struct BLTLR {
    using lookup_key = cts<'b', 'l', 't', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<12, 6, 5>() | shift<0, 11, 5>(),
-                                                'b', 'l', 't', 'l', 'r'>>;
+                                                'b', 'l', 't', 'l', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
@@ -573,7 +706,8 @@ struct BGELR {
    using lookup_key = cts<'b', 'g', 'e', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<4, 6, 5>() | shift<0, 11, 5>(),
-                                                'b', 'g', 'e', 'l', 'r'>>;
+                                                'b', 'g', 'e', 'l', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
@@ -582,7 +716,8 @@ struct BGTLR {
    using lookup_key = cts<'b', 'g', 't', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<12, 6, 5>() | shift<1, 11, 5>(),
-                                                'b', 'g', 't', 'l', 'r'>>;
+                                                'b', 'g', 't', 'l', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
@@ -591,7 +726,8 @@ struct BLELR {
    using lookup_key = cts<'b', 'l', 'e', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<4, 6, 5>() | shift<1, 11, 5>(),
-                                                'b', 'l', 'e', 'l', 'r'>>;
+                                                'b', 'l', 'e', 'l', 'r'>,
+                                   CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    TERMINATION_PARSE>;
 };
@@ -652,6 +788,37 @@ struct CMPW {
                                    OPTIONAL_ARG<0, CR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
                                    REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
                                    REQUIRED_ARG<GPR_PARSE<16>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct CMPWI {
+   using lookup_key = cts<'c', 'm', 'p', 'w', 'i'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<11, 0, 6>(), 'c', 'm', 'p', 'w', 'i'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   OPTIONAL_ARG<0, CR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct CMPLW {
+   using lookup_key = cts<'c', 'm', 'p', 'l', 'w'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<32, 21, 11>(),
+                                                'c', 'm', 'p', 'l', 'w'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   OPTIONAL_ARG<0, CR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<16>, WHITESPACE_SEPARATOR>,
+                                   TERMINATION_PARSE>;
+};
+
+struct CMPLWI {
+   using lookup_key = cts<'c', 'm', 'p', 'l', 'w', 'i'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<11, 0, 6>(), 'c', 'm', 'p', 'l', 'w', 'i'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   OPTIONAL_ARG<0, CR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<GPR_PARSE<11>, CHARACTER_SEPARATOR<','>>,
+                                   REQUIRED_ARG<UIMM_PARSE<16, 16>, WHITESPACE_SEPARATOR>,
                                    TERMINATION_PARSE>;
 };
 
@@ -784,11 +951,13 @@ constexpr uint32_t parse(cts<c...>) {
 //                                 BGTLR, BLELR, CMP, CMPI, CMPL, CMPLI, CMPW>;
 //   return parse_instr_tuple(instr_list {}, cts<c...> {});
    constexpr auto instr_list_trie =
-      create_trie<ADDI, ADDIC, ADDIC_DOT, ADDIS, ANDI_DOT,
-                  ANDIS_DOT, ADD, ADDC, ADDE, AND, ANDC, OR,
-                  ADDME, ADDZE, BRANCH, BRANCH_COND, BRANCH_CTR_COND,
-                  BRANCH_LR_COND, BLR, BEQLR, BNELR, BLTLR, BGELR,
-                  BGTLR, BLELR, CMP, CMPI, CMPL, CMPLI, CMPW>();
+      create_trie<ADDI, ADDIC, ADDIC_DOT, ADDIS, ANDI_DOT, ANDIS_DOT,
+                  ADD, ADDC, ADDE, AND, ANDC, OR,
+                  ADDME, ADDZE,
+                  BRANCH, BRANCH_COND, BEQ, BNE, BLT, BGE, BGT, BLE,
+                  BRANCH_CTR_COND, BCTR, BEQCTR, BNECTR, BLTCTR, BGECTR, BGTCTR, BLECTR,
+                  BRANCH_LR_COND, BLR, BEQLR, BNELR, BLTLR, BGELR, BGTLR, BLELR,
+                  CMP, CMPI, CMPL, CMPLI, CMPW, CMPWI, CMPLW, CMPLWI>();
    return parse_instr_trie(cts<c...> {}, instr_list_trie);
 }
 }
