@@ -775,8 +775,6 @@ constexpr uint32_t parse_instr_tuple(std::tuple<Inst0, InstList...>, cts<c...>) 
    }
 }
 
-
-
 template <char... c>
 constexpr uint32_t parse(cts<c...>) {
 //   using instr_list = std::tuple<ADDI, ADDIC, ADDIC_DOT, ADDIS, ANDI_DOT,

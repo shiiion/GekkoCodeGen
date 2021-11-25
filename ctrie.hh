@@ -72,8 +72,8 @@ constexpr auto build_trie(cts<c...>) {
          build_trie<nth_char<0, c...>::val, _target_val>(typename cts<c...>::trim<1> {});
       return trie_node<_cur_key,
                        lookup_failure,
-                       decltype(build_trie<nth_char<0, c...>::val, _target_val>(
-                                 typename cts<c...>::trim<1> {}))> {};
+                       std::decay_t<decltype(build_trie<nth_char<0, c...>::val, _target_val>(
+                                             typename cts<c...>::trim<1> {}))>> {};
    }
 }
 
@@ -88,11 +88,11 @@ constexpr auto insert_trie(trie_node<_key, _val, Subnode...>, cts<c...>) {
       if constexpr (std::is_same_v<std::decay_t<decltype(subnode_match)>, lookup_failure>) {
          constexpr auto new_subnode =
             build_trie<c0, _insert_val>(typename cts<c...>::trim<1> {});
-         return prepend<decltype(new_subnode)>(trie_node<_key, _val, Subnode...>());
+         return prepend<std::decay_t<decltype(new_subnode)>>(trie_node<_key, _val, Subnode...>());
       } else {
          constexpr auto updated_subnode =
             insert_trie<_insert_val>(subnode_match, typename cts<c...>::trim<1> {});
-         return replace_subnode<decltype(updated_subnode), _key, _val, Subnode...>();
+         return replace_subnode<std::decay_t<decltype(updated_subnode)>, _key, _val, Subnode...>();
       }
    }
 }
