@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cts.hh"
+#include "ctrie.hh"
 
 #include <cstddef>
 #include <cstdint>
@@ -364,31 +365,37 @@ struct RRUI_FAMILY {
 };
 
 struct ADDI : RRUI_FAMILY<SIMM_PARSE> {
+   using lookup_key = cts<'a', 'd', 'd', 'i'>;
    using match_groups = std::tuple<STRING_MATCH<shift<14, 0, 6>(),
                                                 'a', 'd', 'd', 'i'>>;
 };
 
 struct ADDIC : RRUI_FAMILY<SIMM_PARSE> {
+   using lookup_key = cts<'a', 'd', 'd', 'i', 'c'>;
    using match_groups = std::tuple<STRING_MATCH<shift<12, 0, 6>(),
                                                 'a', 'd', 'd', 'i', 'c'>>;
 };
 
 struct ADDIC_DOT : RRUI_FAMILY<SIMM_PARSE> {
+   using lookup_key = cts<'a', 'd', 'd', 'i', 'c', '.'>;
    using match_groups = std::tuple<STRING_MATCH<shift<13, 0, 6>(),
                                                 'a', 'd', 'd', 'i', 'c', '.'>>;
 };
 
 struct ADDIS : RRUI_FAMILY<SIMM_PARSE> {
+   using lookup_key = cts<'a', 'd', 'd', 'i', 's'>;
    using match_groups = std::tuple<STRING_MATCH<shift<15, 0, 6>(),
                                                 'a', 'd', 'd', 'i', 's'>>;
 };
 
 struct ANDI_DOT : RRUI_FAMILY<UIMM_PARSE> {
+   using lookup_key = cts<'a', 'n', 'd', 'i', '.'>;
    using match_groups = std::tuple<STRING_MATCH<shift<28, 0, 6>(),
                                                 'a', 'n', 'd', 'i', '.'>>;
 };
 
 struct ANDIS_DOT : RRUI_FAMILY<UIMM_PARSE> {
+   using lookup_key = cts<'a', 'n', 'd', 'i', 's', '.'>;
    using match_groups = std::tuple<STRING_MATCH<shift<29, 0, 6>(),
                                                 'a', 'n', 'd', 'i', 's', '.'>>;
 };
@@ -406,6 +413,7 @@ struct RRR_FAMILY {
 };
 
 struct ADD : RRR_FAMILY {
+   using lookup_key = cts<'a', 'd', 'd'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<266, 22, 9>(),
                                                 'a', 'd', 'd'>,
                                    CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
@@ -413,6 +421,7 @@ struct ADD : RRR_FAMILY {
 };
 
 struct ADDC : RRR_FAMILY {
+   using lookup_key = cts<'a', 'd', 'd', 'c'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<10, 22, 9>(),
                                                 'a', 'd', 'd', 'c'>,
                                    CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
@@ -420,6 +429,7 @@ struct ADDC : RRR_FAMILY {
 };
 
 struct ADDE : RRR_FAMILY {
+   using lookup_key = cts<'a', 'd', 'd', 'e'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<138, 22, 9>(),
                                                 'a', 'd', 'd', 'e'>,
                                    CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
@@ -427,18 +437,21 @@ struct ADDE : RRR_FAMILY {
 };
 
 struct AND : RRR_FAMILY {
+   using lookup_key = cts<'a', 'n', 'd'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<28, 21, 10>(),
                                                 'a', 'n', 'd'>,
                                    CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
 };
 
 struct ANDC : RRR_FAMILY {
+   using lookup_key = cts<'a', 'n', 'd', 'c'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<60, 21, 10>(),
                                                 'a', 'n', 'd', 'c'>,
                                    CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
 };
 
 struct OR : RRR_FAMILY {
+   using lookup_key = cts<'o', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<444, 21, 10>(),
                                                 'o', 'r'>,
                                    CHARACTER_MATCH<shift<1, 31, 1>(), '.'>>;
@@ -456,6 +469,7 @@ struct RR0_FAMILY {
 };
 
 struct ADDME : RR0_FAMILY {
+   using lookup_key = cts<'a', 'd', 'd', 'm', 'e'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<234, 22, 9>(),
                                                 'a', 'd', 'd', 'm', 'e'>,
                                    CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
@@ -463,6 +477,7 @@ struct ADDME : RR0_FAMILY {
 };
 
 struct ADDZE : RR0_FAMILY {
+   using lookup_key = cts<'a', 'd', 'd', 'z', 'e'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<202, 22, 9>(),
                                                 'a', 'd', 'd', 'z', 'e'>,
                                    CHARACTER_MATCH<shift<1, 21, 1>(), 'o'>,
@@ -474,6 +489,7 @@ struct ADDZE : RR0_FAMILY {
 // Branch instructions
 //
 struct BRANCH {
+   using lookup_key = cts<'b'>;
    using match_groups = std::tuple<CHARACTER_MATCH<shift<18, 0, 6>(), 'b'>,
                                    CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>,
                                    CHARACTER_MATCH<shift<1, 30, 1>(), 'a'>>;
@@ -483,6 +499,7 @@ struct BRANCH {
 };
 
 struct BRANCH_COND {
+   using lookup_key = cts<'b', 'c'>;
    using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>(), 'b', 'c'>,
                                    CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>,
                                    CHARACTER_MATCH<shift<1, 30, 1>(), 'a'>>;
@@ -494,6 +511,7 @@ struct BRANCH_COND {
 };
 
 struct BRANCH_CTR_COND {
+   using lookup_key = cts<'b', 'c', 'c', 't', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<528, 21, 10>(),
                                                 'b', 'c', 'c', 't', 'r'>,
                                    CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
@@ -505,6 +523,7 @@ struct BRANCH_CTR_COND {
 };
 
 struct BRANCH_LR_COND {
+   using lookup_key = cts<'b', 'c', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>(),
                                                 'b', 'c', 'l', 'r'>,
                                    CHARACTER_MATCH<shift<1, 31, 1>(), 'l'>>;
@@ -516,6 +535,7 @@ struct BRANCH_LR_COND {
 };
 
 struct BLR {
+   using lookup_key = cts<'b', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() | shift<20, 6, 5>(),
                                                 'b', 'l', 'r'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
@@ -523,6 +543,7 @@ struct BLR {
 };
 
 struct BEQLR {
+   using lookup_key = cts<'b', 'e', 'q', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<12, 6, 5>() | shift<2, 11, 5>(),
                                                 'b', 'e', 'q', 'l', 'r'>>;
@@ -531,6 +552,7 @@ struct BEQLR {
 };
 
 struct BNELR {
+   using lookup_key = cts<'b', 'n', 'e', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<4, 6, 5>() | shift<2, 11, 5>(),
                                                 'b', 'n', 'e', 'l', 'r'>>;
@@ -539,6 +561,7 @@ struct BNELR {
 };
 
 struct BLTLR {
+   using lookup_key = cts<'b', 'l', 't', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<12, 6, 5>() | shift<0, 11, 5>(),
                                                 'b', 'l', 't', 'l', 'r'>>;
@@ -547,6 +570,7 @@ struct BLTLR {
 };
 
 struct BGELR {
+   using lookup_key = cts<'b', 'g', 'e', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<4, 6, 5>() | shift<0, 11, 5>(),
                                                 'b', 'g', 'e', 'l', 'r'>>;
@@ -555,6 +579,7 @@ struct BGELR {
 };
 
 struct BGTLR {
+   using lookup_key = cts<'b', 'g', 't', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<12, 6, 5>() | shift<1, 11, 5>(),
                                                 'b', 'g', 't', 'l', 'r'>>;
@@ -563,6 +588,7 @@ struct BGTLR {
 };
 
 struct BLELR {
+   using lookup_key = cts<'b', 'l', 'e', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<16, 21, 10>() |
                                                 shift<4, 6, 5>() | shift<1, 11, 5>(),
                                                 'b', 'l', 'e', 'l', 'r'>>;
@@ -575,6 +601,7 @@ struct BLELR {
 // CMP instructions
 //
 struct CMP {
+   using lookup_key = cts<'c', 'm', 'p'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>(), 'c', 'm', 'p'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>, CHARACTER_SEPARATOR<','>>,
@@ -585,6 +612,7 @@ struct CMP {
 };
 
 struct CMPI {
+   using lookup_key = cts<'c', 'm', 'p', 'i'>;
    using match_groups = std::tuple<STRING_MATCH<shift<11, 0, 6>(), 'c', 'm', 'p', 'i'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>, CHARACTER_SEPARATOR<','>>,
@@ -595,6 +623,7 @@ struct CMPI {
 };
 
 struct CMPL {
+   using lookup_key = cts<'c', 'm', 'p', 'l'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<32, 21, 11>(),
                                                 'c', 'm', 'p', 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
@@ -606,6 +635,7 @@ struct CMPL {
 };
 
 struct CMPLI {
+   using lookup_key = cts<'c', 'm', 'p', 'l', 'i'>;
    using match_groups = std::tuple<STRING_MATCH<shift<11, 0, 6>(), 'c', 'm', 'p', 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQUIRED_ARG<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>, CHARACTER_SEPARATOR<','>>,
@@ -616,6 +646,7 @@ struct CMPLI {
 };
 
 struct CMPW {
+   using lookup_key = cts<'c', 'm', 'p', 'w'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>(), 'c', 'm', 'p', 'w'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    OPTIONAL_ARG<0, CR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
@@ -707,28 +738,59 @@ constexpr uint32_t parse_inst_body(cts<c...>) {
    return parse_pg_recurse(typename std::decay_t<Inst>::parse_groups {}, cts<c...> {});
 }
 
-template <typename Inst0, typename... Inst, char... c>
-constexpr uint32_t try_parse_inst(std::tuple<Inst0, Inst...>, cts<c...>) {
-   constexpr auto header = WHITESPACE_SEPARATOR::clipto(cts<c...> {});
-   constexpr bool match_result = run_match<Inst0>(header);
-   static_assert(match_result || sizeof...(Inst) > 0, "Failed to parse instruction head");
-   if constexpr (match_result) {
-      constexpr uint32_t base = get_match_data<Inst0>(header);
-      return base | parse_inst_body<Inst0>(eat_match<Inst0>(cts<c...> {}));
-   } else if constexpr (sizeof...(Inst) > 0) {
-      return try_parse_inst(std::tuple<Inst...> {}, cts<c...>{});
+template <typename trie_root, char... c>
+constexpr uint32_t parse_instr_trie(cts<c...>, trie_root) {
+   constexpr auto instr_guess =
+      lookup_nearest_trie(cts<c...> {}, trie_root {});
+   constexpr bool found_match = !std::is_same_v<decltype(instr_guess), lookup_failure>;
+   static_assert(found_match, "Failed to parse instruction head");
+   if constexpr (found_match) {
+      constexpr auto header = WHITESPACE_SEPARATOR::clipto(cts<c...> {});
+      constexpr bool match_result = run_match<decltype(instr_guess)>(header);
+      static_assert(match_result, "Failed to parse instruction head");
+      if constexpr (match_result) {
+         constexpr uint32_t base = get_match_data<decltype(instr_guess)>(header);
+         return base | parse_inst_body<decltype(instr_guess)>(eat_match<decltype(instr_guess)>(cts<c...> {}));
+      } else {
+         return 0;
+      }
    } else {
       return 0;
    }
 }
 
+// Linear search, performance is pitiful
+template <typename Inst0, typename... InstList, char... c>
+constexpr uint32_t parse_instr_tuple(std::tuple<Inst0, InstList...>, cts<c...>) {
+   constexpr auto header = WHITESPACE_SEPARATOR::clipto(cts<c...> {});
+   constexpr bool match_result = run_match<Inst0>(header);
+   static_assert(match_result || sizeof...(InstList) > 0, "Failed to parse instruction head");
+   if constexpr (match_result) {
+      constexpr uint32_t base = get_match_data<Inst0>(header);
+      return base | parse_inst_body<Inst0>(eat_match<Inst0>(cts<c...> {}));
+   } else if constexpr (sizeof...(InstList) > 0) {
+      return parse_instr_tuple(std::tuple<InstList...> {}, cts<c...>{});
+   } else {
+      return 0;
+   }
+}
+
+
+
 template <char... c>
 constexpr uint32_t parse(cts<c...>) {
-   using instr_list = std::tuple<ADDI, ADDIC, ADDIC_DOT, ADDIS, ANDI_DOT,
-                                 ANDIS_DOT, ADD, ADDC, ADDE, AND, ANDC, OR,
-                                 ADDME, ADDZE, BRANCH, BRANCH_COND, BRANCH_CTR_COND,
-                                 BRANCH_LR_COND, BLR, BEQLR, BNELR, BLTLR, BGELR,
-                                 BGTLR, BLELR, CMP, CMPI, CMPL, CMPLI, CMPW>;
-   return try_parse_inst(instr_list {}, cts<c...> {});
+//   using instr_list = std::tuple<ADDI, ADDIC, ADDIC_DOT, ADDIS, ANDI_DOT,
+//                                 ANDIS_DOT, ADD, ADDC, ADDE, AND, ANDC, OR,
+//                                 ADDME, ADDZE, BRANCH, BRANCH_COND, BRANCH_CTR_COND,
+//                                 BRANCH_LR_COND, BLR, BEQLR, BNELR, BLTLR, BGELR,
+//                                 BGTLR, BLELR, CMP, CMPI, CMPL, CMPLI, CMPW>;
+//   return parse_instr_tuple(instr_list {}, cts<c...> {});
+   constexpr auto instr_list_trie =
+      create_trie<ADDI, ADDIC, ADDIC_DOT, ADDIS, ANDI_DOT,
+                  ANDIS_DOT, ADD, ADDC, ADDE, AND, ANDC, OR,
+                  ADDME, ADDZE, BRANCH, BRANCH_COND, BRANCH_CTR_COND,
+                  BRANCH_LR_COND, BLR, BEQLR, BNELR, BLTLR, BGELR,
+                  BGTLR, BLELR, CMP, CMPI, CMPL, CMPLI, CMPW>();
+   return parse_instr_trie(cts<c...> {}, instr_list_trie);
 }
 }
