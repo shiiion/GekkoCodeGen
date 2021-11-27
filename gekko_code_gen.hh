@@ -166,6 +166,20 @@ using RB_PARSE = GPR_PARSE<16>;
 using RD_PARSE = GPR_PARSE<6>;
 using RS_PARSE = GPR_PARSE<6>;
 
+struct RS_RB_PARSE {
+   constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
+
+   template <char... c>
+   constexpr static std::optional<uint32_t> parse(cts<c...>) {
+      constexpr auto reg_val = RS_PARSE::parse(cts<c...> {});
+      if constexpr (reg_val) {
+         return reg_val.value() | (reg_val.value() >> 10);
+      } else {
+         return std::nullopt;
+      }
+   }
+};
+
 template <uint32_t off>
 struct FPR_PARSE : REG_PARSE<off, 5, 'f'> {};
 
@@ -250,10 +264,11 @@ struct SPR_IMM_PARSE {
 
    template <char... c>
    constexpr static std::optional<uint32_t> parse(cts<c...>) {
-      constexpr auto val_parse = UIMM_PARSE<off, 10>::parse(cts<c...> {});
+      // I don't like how this is set up, but it's too late to fix
+      constexpr auto val_parse = UIMM_PARSE<22, 10>::parse(cts<c...> {});
       if constexpr (val_parse) {
-         return (val_parse.val() << 5 & 0b1111100000) |
-                (val_parse.val() >> 5 & 0b0000011111);
+         return shift<((val_parse.value() << 5) & 0b1111100000) |
+                      ((val_parse.value() >> 5) & 0b0000011111), off, 10>();
       } else {
          return std::nullopt;
       }
@@ -456,6 +471,7 @@ struct NOP {
    using lookup_key = cts<'n', 'o', 'p'>;
    using match_groups = std::tuple<STRING_MATCH<shift<24, 0, 6>(),
                                                 'n', 'o', 'p'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR, TERMINATION_PARSE>;
 };
 
 //
@@ -492,6 +508,26 @@ struct ADDIS : RRID_FAMILY<SIMM_PARSE> {
    using lookup_key = cts<'a', 'd', 'd', 'i', 's'>;
    using match_groups = std::tuple<STRING_MATCH<shift<15, 0, 6>(),
                                                 'a', 'd', 'd', 'i', 's'>>;
+};
+
+struct LI {
+   using lookup_key = cts<'l', 'i'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<14, 0, 6>(),
+                                                'l', 'i'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RD_PARSE>,
+                                   REQ_ARG_FINAL<SIMM_PARSE<16, 16>>,
+                                   TERMINATION_PARSE>;
+};
+
+struct LIS {
+   using lookup_key = cts<'l', 'i', 's'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<15, 0, 6>(),
+                                                'l', 'i', 's'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RD_PARSE>,
+                                   REQ_ARG_FINAL<PARSE_ANY<SIMM_PARSE<16, 16>, UIMM_PARSE<16, 16>>>,
+                                   TERMINATION_PARSE>;
 };
 
 struct MULLI : RRID_FAMILY<SIMM_PARSE> {
@@ -561,6 +597,17 @@ struct OR : RRRA_FAMILY {
                                    CHARACTER_BIT_MATCH<31, '.'>>;
 };
 
+struct MR {
+   using lookup_key = cts<'m', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<444, 21, 10>(),
+                                                'm', 'r'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_FINAL<RS_RB_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
 struct ORC : RRRA_FAMILY {
    using lookup_key = cts<'o', 'r', 'c'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<412, 21, 10>(),
@@ -589,58 +636,11 @@ struct SRW : RRRA_FAMILY {
                                    CHARACTER_BIT_MATCH<31, '.'>>;
 };
 
-struct STBUX : RRRA_FAMILY {
-   using lookup_key = cts<'s', 't', 'b', 'u', 'x'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<247, 22, 9>(),
-                                                's', 't', 'b', 'u', 'x'>>;
-};
-
-struct STBX : RRRA_FAMILY {
-   using lookup_key = cts<'s', 't', 'b', 'x'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<215, 22, 9>(),
-                                                's', 't', 'b', 'x'>>;
-};
-
-struct STHBRX : RRRA_FAMILY {
-   using lookup_key = cts<'s', 't', 'h', 'b', 'r', 'x'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<918, 21, 10>(),
-                                                's', 't', 'h', 'b', 'r', 'x'>>;
-};
-
-struct STHUX : RRRA_FAMILY {
-   using lookup_key = cts<'s', 't', 'h', 'u', 'x'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<439, 21, 10>(),
-                                                's', 't', 'h', 'u', 'x'>>;
-};
-
-struct STHX : RRRA_FAMILY {
-   using lookup_key = cts<'s', 't', 'h', 'x'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<407, 21, 10>(),
-                                                's', 't', 'h', 'x'>>;
-};
-
-struct STWBRX : RRRA_FAMILY {
-   using lookup_key = cts<'s', 't', 'w', 'b', 'r', 'x'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<662, 21, 10>(),
-                                                's', 't', 'w', 'b', 'r', 'x'>>;
-};
-
-struct STWUX : RRRA_FAMILY {
-   using lookup_key = cts<'s', 't', 'w', 'u', 'x'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<183, 21, 10>(),
-                                                's', 't', 'w', 'u', 'x'>>;
-};
-
-struct STWX : RRRA_FAMILY {
-   using lookup_key = cts<'s', 't', 'w', 'x'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<151, 21, 10>(),
-                                                's', 't', 'w', 'x'>>;
-};
-
 struct XOR : RRRA_FAMILY {
    using lookup_key = cts<'x', 'o', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<316, 21, 10>(),
-                                                'x', 'o', 'r'>>;
+                                                'x', 'o', 'r'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
 };
 
 
@@ -816,7 +816,7 @@ struct SUB {
 
 struct SUBC {
    using lookup_key = cts<'s', 'u', 'b', 'c'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<40, 22, 9>(),
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<8, 22, 9>(),
                                                 's', 'u', 'b', 'c'>,
                                    CHARACTER_BIT_MATCH<21, 'o'>,
                                    CHARACTER_BIT_MATCH<31, '.'>>;
@@ -857,7 +857,7 @@ struct EXTSH : RR0A_FAMILY {
 
 struct SRAWI {
    using lookup_key = cts<'s', 'r', 'a', 'w', 'i'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>(),
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<824, 21, 10>(),
                                                 's', 'r', 'a', 'w', 'i'>,
                                    CHARACTER_BIT_MATCH<31, '.'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
@@ -924,8 +924,8 @@ struct SUBFZE : RR0D_FAMILY {
 //
 struct CCC_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   REQ_ARG_FINAL<PARSE_ANY<UIMM_PARSE<6, 5>, CR0_BIT_PARSE<6, 5>>>,
-                                   REQ_ARG_FINAL<PARSE_ANY<UIMM_PARSE<11, 5>, CR0_BIT_PARSE<11, 5>>>,
+                                   REQ_ARG_COMMA<PARSE_ANY<UIMM_PARSE<6, 5>, CR0_BIT_PARSE<6, 5>>>,
+                                   REQ_ARG_COMMA<PARSE_ANY<UIMM_PARSE<11, 5>, CR0_BIT_PARSE<11, 5>>>,
                                    REQ_ARG_FINAL<PARSE_ANY<UIMM_PARSE<16, 5>, CR0_BIT_PARSE<16, 5>>>,
                                    TERMINATION_PARSE>;
 };
@@ -938,7 +938,7 @@ struct CRAND : CCC_FAMILY {
 
 struct CRANDC : CCC_FAMILY {
    using lookup_key = cts<'c', 'r', 'a', 'n', 'd', 'c'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<193, 21, 10>(),
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>() | shift<129, 21, 10>(),
                                                 'c', 'r', 'a', 'n', 'd', 'c'>>;
 };
 
@@ -1118,14 +1118,14 @@ struct FF0FD_FAMILY {
                                    TERMINATION_PARSE>;
 };
 
-struct FMUL {
+struct FMUL : FF0FD_FAMILY {
    using lookup_key = cts<'f', 'm', 'u', 'l'>;
    using match_groups = std::tuple<STRING_MATCH<shift<63, 0, 6>() | shift<25, 26, 5>(),
                                                 'f', 'm', 'u', 'l'>,
                                    CHARACTER_BIT_MATCH<31, '.'>>;
 };
 
-struct FMULS {
+struct FMULS : FF0FD_FAMILY {
    using lookup_key = cts<'f', 'm', 'u', 'l', 's'>;
    using match_groups = std::tuple<STRING_MATCH<shift<59, 0, 6>() | shift<25, 26, 5>(),
                                                 'f', 'm', 'u', 'l', 's'>,
@@ -1214,7 +1214,7 @@ struct FSEL : FFFFD_FAMILY {
 //
 struct FCMPO {
    using lookup_key = cts<'f', 'c', 'm', 'p', 'o'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<63, 0, 6>() | shift<0, 21, 10>(),
+   using match_groups = std::tuple<STRING_MATCH<shift<63, 0, 6>() | shift<32, 21, 10>(),
                                                 'f', 'c', 'm', 'p', 'o'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_COMMA<CR_PARSE<6>>,
@@ -1225,7 +1225,7 @@ struct FCMPO {
 
 struct FCMPU {
    using lookup_key = cts<'f', 'c', 'm', 'p', 'u'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<63, 0, 6>() | shift<32, 21, 10>(),
+   using match_groups = std::tuple<STRING_MATCH<shift<63, 0, 6>() | shift<0, 21, 10>(),
                                                 'f', 'c', 'm', 'p', 'u'>>;
    // Same parse
    using parse_groups = FCMPO::parse_groups;
@@ -1252,7 +1252,7 @@ struct BRANCH_COND {
                                    CHARACTER_BIT_MATCH<30, 'a'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_COMMA<UIMM_PARSE<6, 5>>,
-                                   REQ_ARG_COMMA<UIMM_PARSE<11, 5>>,
+                                   REQ_ARG_COMMA<PARSE_ANY<UIMM_PARSE<11, 5>, CR0_BIT_PARSE<11, 5>>>,
                                    REQ_ARG_FINAL<SIMM_PARSE<16, 16, 2>>,
                                    TERMINATION_PARSE>;
 };
@@ -1267,42 +1267,54 @@ struct BEQ : Bxx_FAMILY {
    using lookup_key = cts<'b', 'e', 'q'>;
    using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
                                                 shift<12, 6, 5>() | shift<2, 11, 5>(),
-                                                'b', 'e', 'q'>>;
+                                                'b', 'e', 'q'>,
+                                   CHARACTER_BIT_MATCH<31, 'l'>,
+                                   CHARACTER_BIT_MATCH<30, 'a'>>;
 };
 
 struct BNE : Bxx_FAMILY {
    using lookup_key = cts<'b', 'n', 'e'>;
    using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
                                                 shift<4, 6, 5>() | shift<2, 11, 5>(),
-                                                'b', 'n', 'e'>>;
+                                                'b', 'n', 'e'>,
+                                   CHARACTER_BIT_MATCH<31, 'l'>,
+                                   CHARACTER_BIT_MATCH<30, 'a'>>;
 };
 
 struct BLT : Bxx_FAMILY {
    using lookup_key = cts<'b', 'l', 't'>;
    using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
                                                 shift<12, 6, 5>() | shift<0, 11, 5>(),
-                                                'b', 'l', 't'>>;
+                                                'b', 'l', 't'>,
+                                   CHARACTER_BIT_MATCH<31, 'l'>,
+                                   CHARACTER_BIT_MATCH<30, 'a'>>;
 };
 
 struct BGE : Bxx_FAMILY {
    using lookup_key = cts<'b', 'g', 'e'>;
    using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
                                                 shift<4, 6, 5>() | shift<0, 11, 5>(),
-                                                'b', 'g', 'e'>>;
+                                                'b', 'g', 'e'>,
+                                   CHARACTER_BIT_MATCH<31, 'l'>,
+                                   CHARACTER_BIT_MATCH<30, 'a'>>;
 };
 
 struct BGT : Bxx_FAMILY {
    using lookup_key = cts<'b', 'g', 't'>;
    using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
                                                 shift<12, 6, 5>() | shift<1, 11, 5>(),
-                                                'b', 'g', 't'>>;
+                                                'b', 'g', 't'>,
+                                   CHARACTER_BIT_MATCH<31, 'l'>,
+                                   CHARACTER_BIT_MATCH<30, 'a'>>;
 };
 
 struct BLE : Bxx_FAMILY {
    using lookup_key = cts<'b', 'l', 'e'>;
    using match_groups = std::tuple<STRING_MATCH<shift<16, 0, 6>() |
                                                 shift<4, 6, 5>() | shift<1, 11, 5>(),
-                                                'b', 'l', 'e'>>;
+                                                'b', 'l', 'e'>,
+                                   CHARACTER_BIT_MATCH<31, 'l'>,
+                                   CHARACTER_BIT_MATCH<30, 'a'>>;
 };
 
 struct BRANCH_CTR_COND {
@@ -1450,7 +1462,7 @@ struct CMP {
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>(), 'c', 'm', 'p'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_COMMA<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>>,
-                                   REQ_ARG_COMMA<UIMM_PARSE<10, 1>>,
+                                   OPTIONAL_ARG<0, UIMM_PARSE<10, 1>, CHARACTER_SEPARATOR<','>>,
                                    REQ_ARG_COMMA<RA_PARSE>,
                                    REQ_ARG_FINAL<RB_PARSE>,
                                    TERMINATION_PARSE>;
@@ -1461,7 +1473,7 @@ struct CMPI {
    using match_groups = std::tuple<STRING_MATCH<shift<11, 0, 6>(), 'c', 'm', 'p', 'i'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_COMMA<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>>,
-                                   REQ_ARG_COMMA<UIMM_PARSE<10, 1>>,
+                                   OPTIONAL_ARG<0, UIMM_PARSE<10, 1>, CHARACTER_SEPARATOR<','>>,
                                    REQ_ARG_COMMA<RA_PARSE>,
                                    REQ_ARG_FINAL<SIMM_PARSE<16, 16>>,
                                    TERMINATION_PARSE>;
@@ -1469,11 +1481,11 @@ struct CMPI {
 
 struct CMPL {
    using lookup_key = cts<'c', 'm', 'p', 'l'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<32, 21, 11>(),
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<32, 21, 10>(),
                                                 'c', 'm', 'p', 'l'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_COMMA<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>>,
-                                   REQ_ARG_COMMA<UIMM_PARSE<10, 1>>,
+                                   OPTIONAL_ARG<0, UIMM_PARSE<10, 1>, CHARACTER_SEPARATOR<','>>,
                                    REQ_ARG_COMMA<RA_PARSE>,
                                    REQ_ARG_FINAL<RB_PARSE>,
                                    TERMINATION_PARSE>;
@@ -1481,10 +1493,10 @@ struct CMPL {
 
 struct CMPLI {
    using lookup_key = cts<'c', 'm', 'p', 'l', 'i'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<11, 0, 6>(), 'c', 'm', 'p', 'l'>>;
+   using match_groups = std::tuple<STRING_MATCH<shift<10, 0, 6>(), 'c', 'm', 'p', 'l', 'i'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_COMMA<PARSE_ANY<UIMM_PARSE<6, 3>, CR_PARSE<6>>>,
-                                   REQ_ARG_COMMA<UIMM_PARSE<10, 1>>,
+                                   OPTIONAL_ARG<0, UIMM_PARSE<10, 1>, CHARACTER_SEPARATOR<','>>,
                                    REQ_ARG_COMMA<RA_PARSE>,
                                    REQ_ARG_FINAL<UIMM_PARSE<16, 16>>,
                                    TERMINATION_PARSE>;
@@ -1512,7 +1524,7 @@ struct CMPWI {
 
 struct CMPLW {
    using lookup_key = cts<'c', 'm', 'p', 'l', 'w'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<32, 21, 11>(),
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<32, 21, 10>(),
                                                 'c', 'm', 'p', 'l', 'w'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    OPTIONAL_ARG<0, CR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
@@ -1523,7 +1535,7 @@ struct CMPLW {
 
 struct CMPLWI {
    using lookup_key = cts<'c', 'm', 'p', 'l', 'w', 'i'>;
-   using match_groups = std::tuple<STRING_MATCH<shift<11, 0, 6>(), 'c', 'm', 'p', 'l', 'w', 'i'>>;
+   using match_groups = std::tuple<STRING_MATCH<shift<10, 0, 6>(), 'c', 'm', 'p', 'l', 'w', 'i'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    OPTIONAL_ARG<0, CR_PARSE<6>, CHARACTER_SEPARATOR<','>>,
                                    REQ_ARG_COMMA<RA_PARSE>,
@@ -1646,6 +1658,63 @@ struct STWU : STORE_INTEGER_FAMILY {
    using match_groups = std::tuple<STRING_MATCH<shift<37, 0, 6>(),
                                                 's', 't', 'w', 'u'>>;
 };
+
+struct STORE_INTEGER_INDEXED_FAMILY {
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RS_PARSE>,
+                                   REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_FINAL<RB_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct STBUX : STORE_INTEGER_INDEXED_FAMILY {
+   using lookup_key = cts<'s', 't', 'b', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<247, 22, 9>(),
+                                                's', 't', 'b', 'u', 'x'>>;
+};
+
+struct STBX : STORE_INTEGER_INDEXED_FAMILY {
+   using lookup_key = cts<'s', 't', 'b', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<215, 22, 9>(),
+                                                's', 't', 'b', 'x'>>;
+};
+
+struct STHBRX : STORE_INTEGER_INDEXED_FAMILY {
+   using lookup_key = cts<'s', 't', 'h', 'b', 'r', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<918, 21, 10>(),
+                                                's', 't', 'h', 'b', 'r', 'x'>>;
+};
+
+struct STHUX : STORE_INTEGER_INDEXED_FAMILY {
+   using lookup_key = cts<'s', 't', 'h', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<439, 21, 10>(),
+                                                's', 't', 'h', 'u', 'x'>>;
+};
+
+struct STHX : STORE_INTEGER_INDEXED_FAMILY {
+   using lookup_key = cts<'s', 't', 'h', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<407, 21, 10>(),
+                                                's', 't', 'h', 'x'>>;
+};
+
+struct STWBRX : STORE_INTEGER_INDEXED_FAMILY {
+   using lookup_key = cts<'s', 't', 'w', 'b', 'r', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<662, 21, 10>(),
+                                                's', 't', 'w', 'b', 'r', 'x'>>;
+};
+
+struct STWUX : STORE_INTEGER_INDEXED_FAMILY {
+   using lookup_key = cts<'s', 't', 'w', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<183, 21, 10>(),
+                                                's', 't', 'w', 'u', 'x'>>;
+};
+
+struct STWX : STORE_INTEGER_INDEXED_FAMILY {
+   using lookup_key = cts<'s', 't', 'w', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<151, 21, 10>(),
+                                                's', 't', 'w', 'x'>>;
+};
+
 
 struct LOAD_FLOAT_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
@@ -1844,7 +1913,7 @@ struct MFSPR {
 struct MFLR {
    using lookup_key = cts<'m', 'f', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<339, 21, 10>() |
-                                                shift<0b0000100000, 11, 10>(),
+                                                shift<0b0100000000, 11, 10>(),
                                                 'm', 'f', 'l', 'r'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_FINAL<RD_PARSE>,
@@ -1854,7 +1923,7 @@ struct MFLR {
 struct MFCTR {
    using lookup_key = cts<'m', 'f', 'c', 't', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<339, 21, 10>() |
-                                                shift<0b0100000000, 11, 10>(),
+                                                shift<0b0100100000, 11, 10>(),
                                                 'm', 'f', 'c', 't', 'r'>>;
    using parse_groups = MFLR::parse_groups;
 };
@@ -1862,8 +1931,9 @@ struct MFCTR {
 struct MFXER {
    using lookup_key = cts<'m', 'f', 'x', 'e', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<339, 21, 10>() |
-                                                shift<0b0100100000, 11, 10>(),
+                                                shift<0b0000100000, 11, 10>(),
                                                 'm', 'f', 'x', 'e', 'r'>>;
+   using parse_groups = MFLR::parse_groups;
 };
 
 struct MTCRF {
@@ -1899,15 +1969,15 @@ struct MTSPR {
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<467, 21, 10>(),
                                                 'm', 't', 's', 'p', 'r'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   REQ_ARG_FINAL<PARSE_ANY<SPR_IMM_PARSE<11>, SPR_PARSE<11>>>,
-                                   REQ_ARG_COMMA<RS_PARSE>,
+                                   REQ_ARG_COMMA<PARSE_ANY<SPR_IMM_PARSE<11>, SPR_PARSE<11>>>,
+                                   REQ_ARG_FINAL<RS_PARSE>,
                                    TERMINATION_PARSE>;
 };
 
 struct MTLR {
    using lookup_key = cts<'m', 't', 'l', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<467, 21, 10>() |
-                                                shift<0b0000100000, 11, 10>(),
+                                                shift<0b0100000000, 11, 10>(),
                                                 'm', 't', 'l', 'r'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_FINAL<RS_PARSE>,
@@ -1917,7 +1987,7 @@ struct MTLR {
 struct MTCTR {
    using lookup_key = cts<'m', 't', 'c', 't', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<467, 21, 10>() |
-                                                shift<0b0100000000, 11, 10>(),
+                                                shift<0b0100100000, 11, 10>(),
                                                 'm', 't', 'c', 't', 'r'>>;
    using parse_groups = MTLR::parse_groups;
 };
@@ -1925,7 +1995,7 @@ struct MTCTR {
 struct MTXER {
    using lookup_key = cts<'m', 't', 'x', 'e', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<467, 21, 10>() |
-                                                shift<0b0100100000, 11, 10>(),
+                                                shift<0b0000100000, 11, 10>(),
                                                 'm', 't', 'x', 'e', 'r'>>;
    using parse_groups = MTLR::parse_groups;
 };
@@ -1940,8 +2010,8 @@ struct RLWIMI {
                                                 'r', 'l', 'w', 'i', 'm', 'i'>,
                                    CHARACTER_BIT_MATCH<31, '.'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   REQ_ARG_COMMA<RS_PARSE>,
                                    REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_COMMA<RS_PARSE>,
                                    REQ_ARG_COMMA<UIMM_PARSE<16, 5>>,
                                    REQ_ARG_COMMA<UIMM_PARSE<21, 5>>,
                                    REQ_ARG_FINAL<UIMM_PARSE<26, 5>>,
@@ -1962,8 +2032,8 @@ struct RLWNM {
                                                 'r', 'l', 'w', 'n', 'm'>,
                                    CHARACTER_BIT_MATCH<31, '.'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   REQ_ARG_COMMA<RS_PARSE>,
                                    REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_COMMA<RS_PARSE>,
                                    REQ_ARG_COMMA<RB_PARSE>,
                                    REQ_ARG_COMMA<UIMM_PARSE<21, 5>>,
                                    REQ_ARG_FINAL<UIMM_PARSE<26, 5>>,
@@ -2091,6 +2161,11 @@ constexpr uint32_t parse_instr_tuple(std::tuple<Inst0, InstList...>, cts<c...>) 
    }
 }
 
+template <typename T>
+constexpr void force_failure(T) {
+   static_assert(std::is_same_v<std::decay_t<T>, T&>, "See error for T");
+}
+
 template <char... c>
 constexpr uint32_t parse(cts<c...>) {
 #ifdef _USE_LINEAR_SEARCH_PARSE
@@ -2143,15 +2218,16 @@ constexpr uint32_t parse(cts<c...>) {
                  >;
    return parse_instr_tuple(instr_list {}, cts<c...> {});
 #else 
-/*   constexpr auto instr_list_trie =
+   /*
+   constexpr auto instr_list_trie =
       create_trie<
                   // RRIA
                   ANDI_DOT, ANDIS_DOT, ORI, ORIS, XORI, XORIS, NOP,
                   // RRID
-                  ADDI, ADDIC, ADDIC_DOT, ADDIS, MULLI, SUBFIC,
+                  ADDI, ADDIC, ADDIC_DOT, ADDIS, MULLI, SUBFIC, LI, LIS,
                   // RRRA
                   AND, ANDC, EQV, OR, NAND, NOR, ORC, SLW, SRAW, SRW, STBUX, STBX,
-                  STHBRX, STHUX, STHX, STWBRX, STWUX, STWX, XOR,
+                  STHBRX, STHUX, STHX, STWBRX, STWUX, STWX, XOR, MR,
                   // RRRD
                   ADD, ADDC, ADDE, DIVW, DIVWU, LBZUX, LBZX, LHAUX, LHAX, LHBRX,
                   LHZUX, LHZX, LWBRX, LWZUX, LWZX, MULHW, MULLW, SUBF, SUBFC, SUBFE,
@@ -2190,9 +2266,13 @@ constexpr uint32_t parse(cts<c...>) {
                   // Bit manipulation
                   RLWIMI, RLWINM, RLWNM
                   >();
-*/
-using cached_trie = trie_node<'\000', lookup_failure, trie_node<'o', lookup_failure, trie_node<'r', OR, trie_node<'i', ORI, trie_node<'s', ORIS>>, trie_node<'c', ORC>>>, trie_node<'x', lookup_failure, trie_node<'o', lookup_failure, trie_node<'r', XOR, trie_node<'i', XORI, trie_node<'s', XORIS>>>>>, trie_node<'d', lookup_failure, trie_node<'i', lookup_failure, trie_node<'v', lookup_failure, trie_node<'w', DIVW, trie_node<'u', DIVWU>>>>>, trie_node<'e', lookup_failure, trie_node<'q', lookup_failure, trie_node<'v', EQV>>, trie_node<'x', lookup_failure, trie_node<'t', lookup_failure, trie_node<'s', lookup_failure, trie_node<'b', EXTSB>, trie_node<'h', EXTSH>>>>>, trie_node<'a', lookup_failure, trie_node<'n', lookup_failure, trie_node<'d', AND, trie_node<'i', lookup_failure, trie_node<'.', ANDI_DOT>, trie_node<'s', lookup_failure, trie_node<'.', ANDIS_DOT>>>, trie_node<'c', ANDC>>>, trie_node<'d', lookup_failure, trie_node<'d', ADD, trie_node<'i', ADDI, trie_node<'c', ADDIC, trie_node<'.', ADDIC_DOT>>, trie_node<'s', ADDIS>>, trie_node<'c', ADDC>, trie_node<'e', ADDE>, trie_node<'m', lookup_failure, trie_node<'e', ADDME>>, trie_node<'z', lookup_failure, trie_node<'e', ADDZE>>>>>, trie_node<'n', lookup_failure, trie_node<'a', lookup_failure, trie_node<'n', lookup_failure, trie_node<'d', NAND>>>, trie_node<'o', lookup_failure, trie_node<'p', NOP>, trie_node<'r', NOR>>, trie_node<'e', lookup_failure, trie_node<'g', NEG>>>, trie_node<'f', lookup_failure, trie_node<'r', lookup_failure, trie_node<'e', lookup_failure, trie_node<'s', FRES>>, trie_node<'s', lookup_failure, trie_node<'p', FRSP>, trie_node<'q', lookup_failure, trie_node<'r', lookup_failure, trie_node<'t', lookup_failure, trie_node<'e', FRSQRTE>>>>>>, trie_node<'a', lookup_failure, trie_node<'b', lookup_failure, trie_node<'s', FABS>>, trie_node<'d', lookup_failure, trie_node<'d', FADD, trie_node<'s', FADDS>>>>, trie_node<'d', lookup_failure, trie_node<'i', lookup_failure, trie_node<'v', FDIV, trie_node<'s', FDIVS>>>>, trie_node<'m', lookup_failure, trie_node<'r', FMR>, trie_node<'u', lookup_failure, trie_node<'l', FMUL, trie_node<'s', FMULS>>>, trie_node<'a', lookup_failure, trie_node<'d', lookup_failure, trie_node<'d', FMADD, trie_node<'s', FMADDS>>>>, trie_node<'s', lookup_failure, trie_node<'u', lookup_failure, trie_node<'b', FMSUB, trie_node<'s', FMSUBS>>>>>, trie_node<'n', lookup_failure, trie_node<'a', lookup_failure, trie_node<'b', lookup_failure, trie_node<'s', FNABS>>>, trie_node<'e', lookup_failure, trie_node<'g', FNEG>>, trie_node<'m', lookup_failure, trie_node<'a', lookup_failure, trie_node<'d', lookup_failure, trie_node<'d', FNMADD, trie_node<'s', FNMADDS>>>>, trie_node<'s', lookup_failure, trie_node<'u', lookup_failure, trie_node<'b', FNMSUB, trie_node<'s', FNMSUBS>>>>>>, trie_node<'s', lookup_failure, trie_node<'u', lookup_failure, trie_node<'b', FSUB, trie_node<'s', FSUBS>>>, trie_node<'e', lookup_failure, trie_node<'l', FSEL>>>, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'i', lookup_failure, trie_node<'w', FCTIW, trie_node<'z', FCTIWZ>>>>, trie_node<'m', lookup_failure, trie_node<'p', lookup_failure, trie_node<'o', FCMPO>, trie_node<'u', FCMPU>>>>>, trie_node<'b', BRANCH, trie_node<'c', BRANCH_COND, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BRANCH_CTR_COND>>>, trie_node<'t', lookup_failure, trie_node<'r', BCTR>>, trie_node<'l', lookup_failure, trie_node<'r', BRANCH_LR_COND>>>, trie_node<'e', lookup_failure, trie_node<'q', BEQ, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BEQCTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BEQLR>>>>, trie_node<'n', lookup_failure, trie_node<'e', BNE, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BNECTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BNELR>>>>, trie_node<'g', lookup_failure, trie_node<'e', BGE, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BGECTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BGELR>>>, trie_node<'t', BGT, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BGTCTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BGTLR>>>>, trie_node<'l', lookup_failure, trie_node<'r', BLR>, trie_node<'t', BLT, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BLTCTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BLTLR>>>, trie_node<'e', BLE, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BLECTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BLELR>>>>>, trie_node<'c', lookup_failure, trie_node<'n', lookup_failure, trie_node<'t', lookup_failure, trie_node<'l', lookup_failure, trie_node<'z', lookup_failure, trie_node<'w', CNTLZW>>>>>, trie_node<'r', lookup_failure, trie_node<'a', lookup_failure, trie_node<'n', lookup_failure, trie_node<'d', CRAND, trie_node<'c', CRANDC>>>>, trie_node<'e', lookup_failure, trie_node<'q', lookup_failure, trie_node<'v', CREQV>>>, trie_node<'n', lookup_failure, trie_node<'a', lookup_failure, trie_node<'n', lookup_failure, trie_node<'d', CRNAND>>>, trie_node<'o', lookup_failure, trie_node<'r', CRNOR>>>, trie_node<'o', lookup_failure, trie_node<'r', CROR, trie_node<'c', CRORC>>>, trie_node<'x', lookup_failure, trie_node<'o', lookup_failure, trie_node<'r', CRXOR>>>>, trie_node<'m', lookup_failure, trie_node<'p', CMP, trie_node<'i', CMPI>, trie_node<'w', CMPW, trie_node<'i', CMPWI>>, trie_node<'l', CMPL, trie_node<'i', CMPLI>, trie_node<'w', CMPLW, trie_node<'i', CMPLWI>>>>>>, trie_node<'l', lookup_failure, trie_node<'b', lookup_failure, trie_node<'z', LBZ, trie_node<'x', LBZX>, trie_node<'u', LBZU, trie_node<'x', LBZUX>>>>, trie_node<'h', lookup_failure, trie_node<'b', lookup_failure, trie_node<'r', lookup_failure, trie_node<'x', LHBRX>>>, trie_node<'a', LHA, trie_node<'x', LHAX>, trie_node<'u', LHAU, trie_node<'x', LHAUX>>>, trie_node<'z', LHZ, trie_node<'x', LHZX>, trie_node<'u', LHZU, trie_node<'x', LHZUX>>>>, trie_node<'m', lookup_failure, trie_node<'w', LMW>>, trie_node<'w', lookup_failure, trie_node<'b', lookup_failure, trie_node<'r', lookup_failure, trie_node<'x', LWBRX>>>, trie_node<'z', LWZ, trie_node<'x', LWZX>, trie_node<'u', LWZU, trie_node<'x', LWZUX>>>>, trie_node<'f', lookup_failure, trie_node<'d', LFD, trie_node<'u', LFDU, trie_node<'x', LFDUX>>, trie_node<'x', LFDX>>, trie_node<'s', LFS, trie_node<'u', LFSU, trie_node<'x', LFSUX>>, trie_node<'x', LFSX>>>>, trie_node<'s', lookup_failure, trie_node<'l', lookup_failure, trie_node<'w', SLW>>, trie_node<'r', lookup_failure, trie_node<'w', SRW>, trie_node<'a', lookup_failure, trie_node<'w', SRAW, trie_node<'i', SRAWI>>>>, trie_node<'u', lookup_failure, trie_node<'b', SUB, trie_node<'c', SUBC>, trie_node<'f', SUBF, trie_node<'i', lookup_failure, trie_node<'c', SUBFIC>>, trie_node<'c', SUBFC>, trie_node<'e', SUBFE>, trie_node<'m', lookup_failure, trie_node<'e', SUBFME>>, trie_node<'z', lookup_failure, trie_node<'e', SUBFZE>>>>>, trie_node<'t', lookup_failure, trie_node<'b', STB, trie_node<'x', STBX>, trie_node<'u', STBU, trie_node<'x', STBUX>>>, trie_node<'h', STH, trie_node<'b', lookup_failure, trie_node<'r', lookup_failure, trie_node<'x', STHBRX>>>, trie_node<'x', STHX>, trie_node<'u', STHU, trie_node<'x', STHUX>>>, trie_node<'m', lookup_failure, trie_node<'w', STMW>>, trie_node<'w', STW, trie_node<'b', lookup_failure, trie_node<'r', lookup_failure, trie_node<'x', STWBRX>>>, trie_node<'x', STWX>, trie_node<'u', STWU, trie_node<'x', STWUX>>>, trie_node<'f', lookup_failure, trie_node<'d', STFD, trie_node<'u', STFDU, trie_node<'x', STFDUX>>, trie_node<'x', STFDX>>, trie_node<'s', STFS, trie_node<'u', STFSU, trie_node<'x', STFSUX>>, trie_node<'x', STFSX>>>>>, trie_node<'m', lookup_failure, trie_node<'u', lookup_failure, trie_node<'l', lookup_failure, trie_node<'h', lookup_failure, trie_node<'w', MULHW>>, trie_node<'l', lookup_failure, trie_node<'i', MULLI>, trie_node<'w', MULLW>>>>, trie_node<'c', lookup_failure, trie_node<'r', lookup_failure, trie_node<'f', MCRF, trie_node<'s', MCRFS>>, trie_node<'x', lookup_failure, trie_node<'r', MCRXR>>>>, trie_node<'f', lookup_failure, trie_node<'f', lookup_failure, trie_node<'s', MFFS>>, trie_node<'m', lookup_failure, trie_node<'s', lookup_failure, trie_node<'r', MFMSR>>>, trie_node<'s', lookup_failure, trie_node<'p', lookup_failure, trie_node<'r', MFSPR>>>, trie_node<'l', lookup_failure, trie_node<'r', MFLR>>, trie_node<'c', lookup_failure, trie_node<'r', MFCR>, trie_node<'t', lookup_failure, trie_node<'r', MFCTR>>>, trie_node<'x', lookup_failure, trie_node<'e', lookup_failure, trie_node<'r', MFXER>>>>, trie_node<'t', lookup_failure, trie_node<'m', lookup_failure, trie_node<'s', lookup_failure, trie_node<'r', MTMSR>>>, trie_node<'s', lookup_failure, trie_node<'p', lookup_failure, trie_node<'r', MTSPR>>>, trie_node<'l', lookup_failure, trie_node<'r', MTLR>>, trie_node<'c', lookup_failure, trie_node<'r', MTCR, trie_node<'f', MTCRF>>, trie_node<'t', lookup_failure, trie_node<'r', MTCTR>>>, trie_node<'x', lookup_failure, trie_node<'e', lookup_failure, trie_node<'r', MTXER>>>>>, trie_node<'r', lookup_failure, trie_node<'l', lookup_failure, trie_node<'w', lookup_failure, trie_node<'i', lookup_failure, trie_node<'m', lookup_failure, trie_node<'i', RLWIMI>>, trie_node<'n', lookup_failure, trie_node<'m', RLWINM>>>, trie_node<'n', lookup_failure, trie_node<'m', RLWNM>>>>>>;
+   force_failure(instr_list_trie);
+   return parse_instr_trie(cts<c...> {}, instr_list_trie);
+   */
+
+   using cached_trie = trie_node<'\000', lookup_failure, trie_node<'o', lookup_failure, trie_node<'r', OR, trie_node<'i', ORI, trie_node<'s', ORIS>>, trie_node<'c', ORC>>>, trie_node<'x', lookup_failure, trie_node<'o', lookup_failure, trie_node<'r', XOR, trie_node<'i', XORI, trie_node<'s', XORIS>>>>>, trie_node<'d', lookup_failure, trie_node<'i', lookup_failure, trie_node<'v', lookup_failure, trie_node<'w', DIVW, trie_node<'u', DIVWU>>>>>, trie_node<'e', lookup_failure, trie_node<'q', lookup_failure, trie_node<'v', EQV>>, trie_node<'x', lookup_failure, trie_node<'t', lookup_failure, trie_node<'s', lookup_failure, trie_node<'b', EXTSB>, trie_node<'h', EXTSH>>>>>, trie_node<'a', lookup_failure, trie_node<'n', lookup_failure, trie_node<'d', AND, trie_node<'i', lookup_failure, trie_node<'.', ANDI_DOT>, trie_node<'s', lookup_failure, trie_node<'.', ANDIS_DOT>>>, trie_node<'c', ANDC>>>, trie_node<'d', lookup_failure, trie_node<'d', ADD, trie_node<'i', ADDI, trie_node<'c', ADDIC, trie_node<'.', ADDIC_DOT>>, trie_node<'s', ADDIS>>, trie_node<'c', ADDC>, trie_node<'e', ADDE>, trie_node<'m', lookup_failure, trie_node<'e', ADDME>>, trie_node<'z', lookup_failure, trie_node<'e', ADDZE>>>>>, trie_node<'n', lookup_failure, trie_node<'a', lookup_failure, trie_node<'n', lookup_failure, trie_node<'d', NAND>>>, trie_node<'o', lookup_failure, trie_node<'p', NOP>, trie_node<'r', NOR>>, trie_node<'e', lookup_failure, trie_node<'g', NEG>>>, trie_node<'f', lookup_failure, trie_node<'r', lookup_failure, trie_node<'e', lookup_failure, trie_node<'s', FRES>>, trie_node<'s', lookup_failure, trie_node<'p', FRSP>, trie_node<'q', lookup_failure, trie_node<'r', lookup_failure, trie_node<'t', lookup_failure, trie_node<'e', FRSQRTE>>>>>>, trie_node<'a', lookup_failure, trie_node<'b', lookup_failure, trie_node<'s', FABS>>, trie_node<'d', lookup_failure, trie_node<'d', FADD, trie_node<'s', FADDS>>>>, trie_node<'d', lookup_failure, trie_node<'i', lookup_failure, trie_node<'v', FDIV, trie_node<'s', FDIVS>>>>, trie_node<'m', lookup_failure, trie_node<'r', FMR>, trie_node<'u', lookup_failure, trie_node<'l', FMUL, trie_node<'s', FMULS>>>, trie_node<'a', lookup_failure, trie_node<'d', lookup_failure, trie_node<'d', FMADD, trie_node<'s', FMADDS>>>>, trie_node<'s', lookup_failure, trie_node<'u', lookup_failure, trie_node<'b', FMSUB, trie_node<'s', FMSUBS>>>>>, trie_node<'n', lookup_failure, trie_node<'a', lookup_failure, trie_node<'b', lookup_failure, trie_node<'s', FNABS>>>, trie_node<'e', lookup_failure, trie_node<'g', FNEG>>, trie_node<'m', lookup_failure, trie_node<'a', lookup_failure, trie_node<'d', lookup_failure, trie_node<'d', FNMADD, trie_node<'s', FNMADDS>>>>, trie_node<'s', lookup_failure, trie_node<'u', lookup_failure, trie_node<'b', FNMSUB, trie_node<'s', FNMSUBS>>>>>>, trie_node<'s', lookup_failure, trie_node<'u', lookup_failure, trie_node<'b', FSUB, trie_node<'s', FSUBS>>>, trie_node<'e', lookup_failure, trie_node<'l', FSEL>>>, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'i', lookup_failure, trie_node<'w', FCTIW, trie_node<'z', FCTIWZ>>>>, trie_node<'m', lookup_failure, trie_node<'p', lookup_failure, trie_node<'o', FCMPO>, trie_node<'u', FCMPU>>>>>, trie_node<'b', BRANCH, trie_node<'c', BRANCH_COND, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BRANCH_CTR_COND>>>, trie_node<'t', lookup_failure, trie_node<'r', BCTR>>, trie_node<'l', lookup_failure, trie_node<'r', BRANCH_LR_COND>>>, trie_node<'e', lookup_failure, trie_node<'q', BEQ, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BEQCTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BEQLR>>>>, trie_node<'n', lookup_failure, trie_node<'e', BNE, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BNECTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BNELR>>>>, trie_node<'g', lookup_failure, trie_node<'e', BGE, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BGECTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BGELR>>>, trie_node<'t', BGT, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BGTCTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BGTLR>>>>, trie_node<'l', lookup_failure, trie_node<'r', BLR>, trie_node<'t', BLT, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BLTCTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BLTLR>>>, trie_node<'e', BLE, trie_node<'c', lookup_failure, trie_node<'t', lookup_failure, trie_node<'r', BLECTR>>>, trie_node<'l', lookup_failure, trie_node<'r', BLELR>>>>>, trie_node<'c', lookup_failure, trie_node<'n', lookup_failure, trie_node<'t', lookup_failure, trie_node<'l', lookup_failure, trie_node<'z', lookup_failure, trie_node<'w', CNTLZW>>>>>, trie_node<'r', lookup_failure, trie_node<'a', lookup_failure, trie_node<'n', lookup_failure, trie_node<'d', CRAND, trie_node<'c', CRANDC>>>>, trie_node<'e', lookup_failure, trie_node<'q', lookup_failure, trie_node<'v', CREQV>>>, trie_node<'n', lookup_failure, trie_node<'a', lookup_failure, trie_node<'n', lookup_failure, trie_node<'d', CRNAND>>>, trie_node<'o', lookup_failure, trie_node<'r', CRNOR>>>, trie_node<'o', lookup_failure, trie_node<'r', CROR, trie_node<'c', CRORC>>>, trie_node<'x', lookup_failure, trie_node<'o', lookup_failure, trie_node<'r', CRXOR>>>>, trie_node<'m', lookup_failure, trie_node<'p', CMP, trie_node<'i', CMPI>, trie_node<'w', CMPW, trie_node<'i', CMPWI>>, trie_node<'l', CMPL, trie_node<'i', CMPLI>, trie_node<'w', CMPLW, trie_node<'i', CMPLWI>>>>>>, trie_node<'l', lookup_failure, trie_node<'i', LI, trie_node<'s', LIS>>, trie_node<'b', lookup_failure, trie_node<'z', LBZ, trie_node<'x', LBZX>, trie_node<'u', LBZU, trie_node<'x', LBZUX>>>>, trie_node<'h', lookup_failure, trie_node<'b', lookup_failure, trie_node<'r', lookup_failure, trie_node<'x', LHBRX>>>, trie_node<'a', LHA, trie_node<'x', LHAX>, trie_node<'u', LHAU, trie_node<'x', LHAUX>>>, trie_node<'z', LHZ, trie_node<'x', LHZX>, trie_node<'u', LHZU, trie_node<'x', LHZUX>>>>, trie_node<'m', lookup_failure, trie_node<'w', LMW>>, trie_node<'w', lookup_failure, trie_node<'b', lookup_failure, trie_node<'r', lookup_failure, trie_node<'x', LWBRX>>>, trie_node<'z', LWZ, trie_node<'x', LWZX>, trie_node<'u', LWZU, trie_node<'x', LWZUX>>>>, trie_node<'f', lookup_failure, trie_node<'d', LFD, trie_node<'u', LFDU, trie_node<'x', LFDUX>>, trie_node<'x', LFDX>>, trie_node<'s', LFS, trie_node<'u', LFSU, trie_node<'x', LFSUX>>, trie_node<'x', LFSX>>>>, trie_node<'s', lookup_failure, trie_node<'l', lookup_failure, trie_node<'w', SLW>>, trie_node<'r', lookup_failure, trie_node<'w', SRW>, trie_node<'a', lookup_failure, trie_node<'w', SRAW, trie_node<'i', SRAWI>>>>, trie_node<'u', lookup_failure, trie_node<'b', SUB, trie_node<'c', SUBC>, trie_node<'f', SUBF, trie_node<'i', lookup_failure, trie_node<'c', SUBFIC>>, trie_node<'c', SUBFC>, trie_node<'e', SUBFE>, trie_node<'m', lookup_failure, trie_node<'e', SUBFME>>, trie_node<'z', lookup_failure, trie_node<'e', SUBFZE>>>>>, trie_node<'t', lookup_failure, trie_node<'b', STB, trie_node<'x', STBX>, trie_node<'u', STBU, trie_node<'x', STBUX>>>, trie_node<'h', STH, trie_node<'b', lookup_failure, trie_node<'r', lookup_failure, trie_node<'x', STHBRX>>>, trie_node<'x', STHX>, trie_node<'u', STHU, trie_node<'x', STHUX>>>, trie_node<'m', lookup_failure, trie_node<'w', STMW>>, trie_node<'w', STW, trie_node<'b', lookup_failure, trie_node<'r', lookup_failure, trie_node<'x', STWBRX>>>, trie_node<'x', STWX>, trie_node<'u', STWU, trie_node<'x', STWUX>>>, trie_node<'f', lookup_failure, trie_node<'d', STFD, trie_node<'u', STFDU, trie_node<'x', STFDUX>>, trie_node<'x', STFDX>>, trie_node<'s', STFS, trie_node<'u', STFSU, trie_node<'x', STFSUX>>, trie_node<'x', STFSX>>>>>, trie_node<'m', lookup_failure, trie_node<'r', MR>, trie_node<'u', lookup_failure, trie_node<'l', lookup_failure, trie_node<'h', lookup_failure, trie_node<'w', MULHW>>, trie_node<'l', lookup_failure, trie_node<'i', MULLI>, trie_node<'w', MULLW>>>>, trie_node<'c', lookup_failure, trie_node<'r', lookup_failure, trie_node<'f', MCRF, trie_node<'s', MCRFS>>, trie_node<'x', lookup_failure, trie_node<'r', MCRXR>>>>, trie_node<'f', lookup_failure, trie_node<'f', lookup_failure, trie_node<'s', MFFS>>, trie_node<'m', lookup_failure, trie_node<'s', lookup_failure, trie_node<'r', MFMSR>>>, trie_node<'s', lookup_failure, trie_node<'p', lookup_failure, trie_node<'r', MFSPR>>>, trie_node<'l', lookup_failure, trie_node<'r', MFLR>>, trie_node<'c', lookup_failure, trie_node<'r', MFCR>, trie_node<'t', lookup_failure, trie_node<'r', MFCTR>>>, trie_node<'x', lookup_failure, trie_node<'e', lookup_failure, trie_node<'r', MFXER>>>>, trie_node<'t', lookup_failure, trie_node<'m', lookup_failure, trie_node<'s', lookup_failure, trie_node<'r', MTMSR>>>, trie_node<'s', lookup_failure, trie_node<'p', lookup_failure, trie_node<'r', MTSPR>>>, trie_node<'l', lookup_failure, trie_node<'r', MTLR>>, trie_node<'c', lookup_failure, trie_node<'r', MTCR, trie_node<'f', MTCRF>>, trie_node<'t', lookup_failure, trie_node<'r', MTCTR>>>, trie_node<'x', lookup_failure, trie_node<'e', lookup_failure, trie_node<'r', MTXER>>>>>, trie_node<'r', lookup_failure, trie_node<'l', lookup_failure, trie_node<'w', lookup_failure, trie_node<'i', lookup_failure, trie_node<'m', lookup_failure, trie_node<'i', RLWIMI>>, trie_node<'n', lookup_failure, trie_node<'m', RLWINM>>>, trie_node<'n', lookup_failure, trie_node<'m', RLWNM>>>>>>;
    return parse_instr_trie(cts<c...> {}, cached_trie {});
+
 #endif
 }
 }

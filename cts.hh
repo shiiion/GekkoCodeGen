@@ -295,11 +295,19 @@ constexpr std::optional<uint32_t> try_atoi_full(cts<c...>) {
          }
       } else {
          constexpr auto val = try_decimal_atoi(typename cts<c...>::trim<initial_trim> {});
-         return (negate ? -(val.value()) : (val.value()));
+         if constexpr (val) {
+            return (negate ? -(val.value()) : (val.value()));
+         } else {
+            return std::nullopt;
+         }
       }
    } else {
       constexpr auto val = try_decimal_atoi(typename cts<c...>::trim<initial_trim> {});
-      return (negate ? -(val.value()) : (val.value()));
+      if constexpr (val) {
+         return (negate ? -(val.value()) : (val.value()));
+      } else {
+         return std::nullopt;
+      }
    }
 }
 }
