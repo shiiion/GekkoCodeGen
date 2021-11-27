@@ -244,6 +244,40 @@ struct CR0_BIT_PARSE {
    }
 };
 
+template <uint32_t off>
+struct SPR_IMM_PARSE {
+   constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
+
+   template <char... c>
+   constexpr static std::optional<uint32_t> parse(cts<c...>) {
+      constexpr auto val_parse = UIMM_PARSE<off, 10>::parse(cts<c...> {});
+      if constexpr (val_parse) {
+         return (val_parse.val() << 5 & 0b1111100000) |
+                (val_parse.val() >> 5 & 0b0000011111);
+      } else {
+         return std::nullopt;
+      }
+   }
+};
+
+template <uint32_t off>
+struct SPR_PARSE {
+   constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
+
+   template <char... c>
+   constexpr static std::optional<uint32_t> parse(cts<c...>) {
+      if constexpr (cts<c...>::streq(cts<'x', 'e', 'r'> {})) {
+         return shift<0b0000100000, off, 10>();
+      } else if constexpr (cts<c...>::streq(cts<'l', 'r'> {})) {
+         return shift<0b0100000000, off, 10>();
+      } else if constexpr (cts<c...>::streq(cts<'c', 't', 'r'> {})) {
+         return shift<0b0100100000, off, 10>();
+      } else {
+         return std::nullopt;
+      }
+   }
+};
+
 template <typename... Parsers>
 struct PARSE_ANY {};
 
@@ -394,6 +428,35 @@ struct ANDIS_DOT : RRIA_FAMILY<UIMM_PARSE> {
                                                 'a', 'n', 'd', 'i', 's', '.'>>;
 };
 
+struct ORI : RRIA_FAMILY<UIMM_PARSE> {
+   using lookup_key = cts<'o', 'r', 'i'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<24, 0, 6>(),
+                                                'o', 'r', 'i'>>;
+};
+
+struct ORIS : RRIA_FAMILY<UIMM_PARSE> {
+   using lookup_key = cts<'o', 'r', 'i', 's'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<25, 0, 6>(),
+                                                'o', 'r', 'i', 's'>>;
+};
+
+struct XORI : RRIA_FAMILY<UIMM_PARSE> {
+   using lookup_key = cts<'x', 'o', 'r', 'i'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<26, 0, 6>(),
+                                                'x', 'o', 'r', 'i'>>;
+};
+
+struct XORIS : RRIA_FAMILY<UIMM_PARSE> {
+   using lookup_key = cts<'x', 'o', 'r', 'i', 's'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<27, 0, 6>(),
+                                                'x', 'o', 'r', 'i', 's'>>;
+};
+
+struct NOP {
+   using lookup_key = cts<'n', 'o', 'p'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<24, 0, 6>(),
+                                                'n', 'o', 'p'>>;
+};
 
 //
 // Reg-Reg-IMM instructions (D-A, D destination)
@@ -431,6 +494,18 @@ struct ADDIS : RRID_FAMILY<SIMM_PARSE> {
                                                 'a', 'd', 'd', 'i', 's'>>;
 };
 
+struct MULLI : RRID_FAMILY<SIMM_PARSE> {
+   using lookup_key = cts<'m', 'u', 'l', 'l', 'i'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<7, 0, 6>(),
+                                                'm', 'u', 'l', 'l', 'i'>>;
+};
+
+struct SUBFIC : RRID_FAMILY<SIMM_PARSE> {
+   using lookup_key = cts<'s', 'u', 'b', 'f', 'i', 'c'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<8, 0, 6>(),
+                                                's', 'u', 'b', 'f', 'i', 'c'>>;
+};
+
 
 //
 // Reg-Reg-Reg instructions (S-A-B, A destination)
@@ -465,11 +540,107 @@ struct EQV : RRRA_FAMILY {
                                    CHARACTER_BIT_MATCH<31, '.'>>;
 };
 
+struct NAND : RRRA_FAMILY {
+   using lookup_key = cts<'n', 'a', 'n', 'd'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<476, 21, 10>(),
+                                                'n', 'a', 'n', 'd'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct NOR : RRRA_FAMILY {
+   using lookup_key = cts<'n', 'o', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<124, 21, 10>(),
+                                                'n', 'o', 'r'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
 struct OR : RRRA_FAMILY {
    using lookup_key = cts<'o', 'r'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<444, 21, 10>(),
                                                 'o', 'r'>,
                                    CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct ORC : RRRA_FAMILY {
+   using lookup_key = cts<'o', 'r', 'c'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<412, 21, 10>(),
+                                                'o', 'r', 'c'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct SLW : RRRA_FAMILY {
+   using lookup_key = cts<'s', 'l', 'w'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<24, 21, 10>(),
+                                                's', 'l', 'w'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct SRAW : RRRA_FAMILY {
+   using lookup_key = cts<'s', 'r', 'a', 'w'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<792, 21, 10>(),
+                                                's', 'r', 'a', 'w'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct SRW : RRRA_FAMILY {
+   using lookup_key = cts<'s', 'r', 'w'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<536, 21, 10>(),
+                                                's', 'r', 'w'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct STBUX : RRRA_FAMILY {
+   using lookup_key = cts<'s', 't', 'b', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<247, 22, 9>(),
+                                                's', 't', 'b', 'u', 'x'>>;
+};
+
+struct STBX : RRRA_FAMILY {
+   using lookup_key = cts<'s', 't', 'b', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<215, 22, 9>(),
+                                                's', 't', 'b', 'x'>>;
+};
+
+struct STHBRX : RRRA_FAMILY {
+   using lookup_key = cts<'s', 't', 'h', 'b', 'r', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<918, 21, 10>(),
+                                                's', 't', 'h', 'b', 'r', 'x'>>;
+};
+
+struct STHUX : RRRA_FAMILY {
+   using lookup_key = cts<'s', 't', 'h', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<439, 21, 10>(),
+                                                's', 't', 'h', 'u', 'x'>>;
+};
+
+struct STHX : RRRA_FAMILY {
+   using lookup_key = cts<'s', 't', 'h', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<407, 21, 10>(),
+                                                's', 't', 'h', 'x'>>;
+};
+
+struct STWBRX : RRRA_FAMILY {
+   using lookup_key = cts<'s', 't', 'w', 'b', 'r', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<662, 21, 10>(),
+                                                's', 't', 'w', 'b', 'r', 'x'>>;
+};
+
+struct STWUX : RRRA_FAMILY {
+   using lookup_key = cts<'s', 't', 'w', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<183, 21, 10>(),
+                                                's', 't', 'w', 'u', 'x'>>;
+};
+
+struct STWX : RRRA_FAMILY {
+   using lookup_key = cts<'s', 't', 'w', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<151, 21, 10>(),
+                                                's', 't', 'w', 'x'>>;
+};
+
+struct XOR : RRRA_FAMILY {
+   using lookup_key = cts<'x', 'o', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<316, 21, 10>(),
+                                                'x', 'o', 'r'>>;
 };
 
 
@@ -524,6 +695,134 @@ struct DIVWU : RRRD_FAMILY {
                                    CHARACTER_BIT_MATCH<31, '.'>>;
 };
 
+struct LBZUX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'b', 'z', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<119, 21, 10>(),
+                                                'l', 'b', 'z', 'u', 'x'>>;
+};
+
+struct LBZX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'b', 'z', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<87, 21, 10>(),
+                                                'l', 'b', 'z', 'x'>>;
+};
+
+struct LHAUX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'h', 'a', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<375, 21, 10>(),
+                                                'l', 'h', 'a', 'u', 'x'>>;
+};
+
+struct LHAX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'h', 'a', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<343, 21, 10>(),
+                                                'l', 'h', 'a', 'x'>>;
+};
+
+struct LHBRX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'h', 'b', 'r', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<790, 21, 10>(),
+                                                'l', 'h', 'b', 'r', 'x'>>;
+};
+
+struct LHZUX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'h', 'z', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<311, 21, 10>(),
+                                                'l', 'h', 'z', 'u', 'x'>>;
+};
+
+struct LHZX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'h', 'z', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<279, 21, 10>(),
+                                                'l', 'h', 'z', 'x'>>;
+};
+
+struct LWBRX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'w', 'b', 'r', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<534, 21, 10>(),
+                                                'l', 'w', 'b', 'r', 'x'>>;
+};
+
+struct LWZUX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'w', 'z', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<55, 21, 10>(),
+                                                'l', 'w', 'z', 'u', 'x'>>;
+};
+
+struct LWZX : RRRD_FAMILY {
+   using lookup_key = cts<'l', 'w', 'z', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<23, 21, 10>(),
+                                                'l', 'w', 'z', 'x'>>;
+};
+
+struct MULHW : RRRD_FAMILY {
+   using lookup_key = cts<'m', 'u', 'l', 'h', 'w'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<75, 22, 9>(),
+                                                'm', 'u', 'l', 'h', 'w'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct MULHWU : RRRD_FAMILY {
+   using lookup_key = cts<'m', 'u', 'l', 'h', 'w', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<11, 22, 9>(),
+                                                'm', 'u', 'l', 'h', 'w', 'u'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct MULLW : RRRD_FAMILY {
+   using lookup_key = cts<'m', 'u', 'l', 'l', 'w'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<235, 22, 9>(),
+                                                'm', 'u', 'l', 'l', 'w'>,
+                                   CHARACTER_BIT_MATCH<21, 'o'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct SUBF : RRRD_FAMILY {
+   using lookup_key = cts<'s', 'u', 'b', 'f'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<40, 22, 9>(),
+                                                's', 'u', 'b', 'f'>,
+                                   CHARACTER_BIT_MATCH<21, 'o'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct SUBFC : RRRD_FAMILY {
+   using lookup_key = cts<'s', 'u', 'b', 'f', 'c'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<8, 22, 9>(),
+                                                's', 'u', 'b', 'f', 'c'>,
+                                   CHARACTER_BIT_MATCH<21, 'o'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct SUBFE : RRRD_FAMILY {
+   using lookup_key = cts<'s', 'u', 'b', 'f', 'e'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<136, 22, 9>(),
+                                                's', 'u', 'b', 'f', 'e'>,
+                                   CHARACTER_BIT_MATCH<21, 'o'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct SUB {
+   using lookup_key = cts<'s', 'u', 'b'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<40, 22, 9>(),
+                                                's', 'u', 'b'>,
+                                   CHARACTER_BIT_MATCH<21, 'o'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RD_PARSE>,
+                                   REQ_ARG_COMMA<RB_PARSE>,
+                                   REQ_ARG_FINAL<RA_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct SUBC {
+   using lookup_key = cts<'s', 'u', 'b', 'c'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<40, 22, 9>(),
+                                                's', 'u', 'b', 'c'>,
+                                   CHARACTER_BIT_MATCH<21, 'o'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+   using parse_groups = SUB::parse_groups;
+};
+
 
 //
 // Reg-Reg-0 instructions (S-A, A destination)
@@ -556,6 +855,18 @@ struct EXTSH : RR0A_FAMILY {
                                    CHARACTER_BIT_MATCH<31, '.'>>;
 };
 
+struct SRAWI {
+   using lookup_key = cts<'s', 'r', 'a', 'w', 'i'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>(),
+                                                's', 'r', 'a', 'w', 'i'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_COMMA<RS_PARSE>,
+                                   REQ_ARG_FINAL<UIMM_PARSE<16, 5>>,
+                                   TERMINATION_PARSE>;
+};
+
 
 //
 // Reg-Reg-0 instructions (D-A, D destination)
@@ -579,6 +890,30 @@ struct ADDZE : RR0D_FAMILY {
    using lookup_key = cts<'a', 'd', 'd', 'z', 'e'>;
    using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<202, 22, 9>(),
                                                 'a', 'd', 'd', 'z', 'e'>,
+                                   CHARACTER_BIT_MATCH<21, 'o'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct NEG : RR0D_FAMILY {
+   using lookup_key = cts<'n', 'e', 'g'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<104, 22, 9>(),
+                                                'n', 'e', 'g'>,
+                                   CHARACTER_BIT_MATCH<21, 'o'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct SUBFME : RR0D_FAMILY {
+   using lookup_key = cts<'s', 'u', 'b', 'f', 'm', 'e'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<232, 22, 9>(),
+                                                's', 'u', 'b', 'f', 'm', 'e'>,
+                                   CHARACTER_BIT_MATCH<21, 'o'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+};
+
+struct SUBFZE : RR0D_FAMILY {
+   using lookup_key = cts<'s', 'u', 'b', 'f', 'z', 'e'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<200, 22, 9>(),
+                                                's', 'u', 'b', 'f', 'z', 'e'>,
                                    CHARACTER_BIT_MATCH<21, 'o'>,
                                    CHARACTER_BIT_MATCH<31, '.'>>;
 };
@@ -1197,6 +1532,445 @@ struct CMPLWI {
 };
 
 
+//
+// Memory load-store
+//
+struct LOAD_INTEGER_FAMILY {
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RD_PARSE>,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16>, CHARACTER_SEPARATOR<'('>>,
+                                   REQUIRED_ARG<RA_PARSE, CHARACTER_SEPARATOR<')'>>,
+                                   TERMINATION_PARSE>;
+};
+
+struct LBZ : LOAD_INTEGER_FAMILY {
+   using lookup_key = cts<'l', 'b', 'z'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<34, 0, 6>(),
+                                                'l', 'b', 'z'>>;
+};
+
+struct LBZU : LOAD_INTEGER_FAMILY {
+   using lookup_key = cts<'l', 'b', 'z', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<35, 0, 6>(),
+                                                'l', 'b', 'z', 'u'>>;
+};
+
+struct LHA : LOAD_INTEGER_FAMILY {
+   using lookup_key = cts<'l', 'h', 'a'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<42, 0, 6>(),
+                                                'l', 'h', 'a'>>;
+};
+
+struct LHAU : LOAD_INTEGER_FAMILY {
+   using lookup_key = cts<'l', 'h', 'a', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<43, 0, 6>(),
+                                                'l', 'h', 'a', 'u'>>;
+};
+
+struct LHZ : LOAD_INTEGER_FAMILY {
+   using lookup_key = cts<'l', 'h', 'z'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<40, 0, 6>(),
+                                                'l', 'h', 'z'>>;
+};
+
+struct LHZU : LOAD_INTEGER_FAMILY {
+   using lookup_key = cts<'l', 'h', 'z', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<41, 0, 6>(),
+                                                'l', 'h', 'z', 'u'>>;
+};
+
+struct LMW : LOAD_INTEGER_FAMILY {
+   using lookup_key = cts<'l', 'm', 'w'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<46, 0, 6>(),
+                                                'l', 'm', 'w'>>;
+};
+
+struct LWZ : LOAD_INTEGER_FAMILY {
+   using lookup_key = cts<'l', 'w', 'z'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<32, 0, 6>(),
+                                                'l', 'w', 'z'>>;
+};
+
+struct LWZU : LOAD_INTEGER_FAMILY {
+   using lookup_key = cts<'l', 'w', 'z', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<33, 0, 6>(),
+                                                'l', 'w', 'z', 'u'>>;
+};
+
+struct STORE_INTEGER_FAMILY {
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RS_PARSE>,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16>, CHARACTER_SEPARATOR<'('>>,
+                                   REQUIRED_ARG<RA_PARSE, CHARACTER_SEPARATOR<')'>>,
+                                   TERMINATION_PARSE>;
+};
+
+struct STB : STORE_INTEGER_FAMILY {
+   using lookup_key = cts<'s', 't', 'b'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<38, 0, 6>(),
+                                                's', 't', 'b'>>;
+};
+
+struct STBU : STORE_INTEGER_FAMILY {
+   using lookup_key = cts<'s', 't', 'b', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<39, 0, 6>(),
+                                                's', 't', 'b', 'u'>>;
+};
+
+struct STH : STORE_INTEGER_FAMILY {
+   using lookup_key = cts<'s', 't', 'h'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<44, 0, 6>(),
+                                                's', 't', 'h'>>;
+};
+
+struct STHU : STORE_INTEGER_FAMILY {
+   using lookup_key = cts<'s', 't', 'h', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<45, 0, 6>(),
+                                                's', 't', 'h', 'u'>>;
+};
+
+struct STMW : STORE_INTEGER_FAMILY {
+   using lookup_key = cts<'s', 't', 'm', 'w'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<47, 0, 6>(),
+                                                's', 't', 'm', 'w'>>;
+};
+
+struct STW : STORE_INTEGER_FAMILY {
+   using lookup_key = cts<'s', 't', 'w'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<36, 0, 6>(),
+                                                's', 't', 'w'>>;
+};
+
+struct STWU : STORE_INTEGER_FAMILY {
+   using lookup_key = cts<'s', 't', 'w', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<37, 0, 6>(),
+                                                's', 't', 'w', 'u'>>;
+};
+
+struct LOAD_FLOAT_FAMILY {
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<FD_PARSE>,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16>, CHARACTER_SEPARATOR<'('>>,
+                                   REQUIRED_ARG<RA_PARSE, CHARACTER_SEPARATOR<')'>>,
+                                   TERMINATION_PARSE>;
+};
+
+struct LFD : LOAD_FLOAT_FAMILY {
+   using lookup_key = cts<'l', 'f', 'd'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<50, 0, 6>(),
+                                                'l', 'f', 'd'>>;
+};
+
+struct LFDU : LOAD_FLOAT_FAMILY {
+   using lookup_key = cts<'l', 'f', 'd', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<51, 0, 6>(),
+                                                'l', 'f', 'd', 'u'>>;
+};
+
+struct LFDUX {
+   using lookup_key = cts<'l', 'f', 'd', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<631, 21, 10>(),
+                                                'l', 'f', 'd', 'u', 'x'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<FD_PARSE>,
+                                   REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_FINAL<RB_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct LFDX {
+   using lookup_key = cts<'l', 'f', 'd', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<599, 21, 10>(),
+                                                'l', 'f', 'd', 'x'>>;
+   using parse_groups = LFDUX::parse_groups;
+};
+
+struct LFS : LOAD_FLOAT_FAMILY {
+   using lookup_key = cts<'l', 'f', 's'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<48, 0, 6>(),
+                                                'l', 'f', 's'>>;
+};
+
+struct LFSU : LOAD_FLOAT_FAMILY {
+   using lookup_key = cts<'l', 'f', 's', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<49, 0, 6>(),
+                                                'l', 'f', 's', 'u'>>;
+};
+
+struct LFSUX {
+   using lookup_key = cts<'l', 'f', 's', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<567, 21, 10>(),
+                                                'l', 'f', 's', 'u', 'x'>>;
+   using parse_groups = LFDUX::parse_groups;
+};
+
+struct LFSX {
+   using lookup_key = cts<'l', 'f', 's', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<535, 21, 10>(),
+                                                'l', 'f', 's', 'x'>>;
+   using parse_groups = LFDUX::parse_groups;
+};
+
+struct STORE_FLOAT_FAMILY {
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<FS_PARSE>,
+                                   REQUIRED_ARG<SIMM_PARSE<16, 16>, CHARACTER_SEPARATOR<'('>>,
+                                   REQUIRED_ARG<RA_PARSE, CHARACTER_SEPARATOR<')'>>,
+                                   TERMINATION_PARSE>;
+};
+
+struct STFD : STORE_FLOAT_FAMILY {
+   using lookup_key = cts<'s', 't', 'f', 'd'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<54, 0, 6>(),
+                                                's', 't', 'f', 'd'>>;
+};
+
+struct STFDU : STORE_FLOAT_FAMILY {
+   using lookup_key = cts<'s', 't', 'f', 'd', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<55, 0, 6>(),
+                                                's', 't', 'f', 'd', 'u'>>;
+};
+
+struct STFDUX {
+   using lookup_key = cts<'s', 't', 'f', 'd', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<759, 21, 10>(),
+                                                's', 't', 'f', 'd', 'u', 'x'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<FS_PARSE>,
+                                   REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_FINAL<RB_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct STFDX {
+   using lookup_key = cts<'s', 't', 'f', 'd', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<727, 21, 10>(),
+                                                's', 't', 'f', 'd', 'x'>>;
+   using parse_groups = STFDUX::parse_groups;
+};
+
+struct STFS : STORE_FLOAT_FAMILY {
+   using lookup_key = cts<'s', 't', 'f', 's'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<52, 0, 6>(),
+                                                's', 't', 'f', 's'>>;
+};
+
+struct STFSU : STORE_FLOAT_FAMILY {
+   using lookup_key = cts<'s', 't', 'f', 's', 'u'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<53, 0, 6>(),
+                                                's', 't', 'f', 's', 'u'>>;
+};
+
+struct STFSUX {
+   using lookup_key = cts<'s', 't', 'f', 's', 'u', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<695, 21, 10>(),
+                                                's', 't', 'f', 's', 'u', 'x'>>;
+   using parse_groups = STFDUX::parse_groups;
+};
+
+struct STFSX {
+   using lookup_key = cts<'s', 't', 'f', 's', 'x'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<663, 21, 10>(),
+                                                's', 't', 'f', 's', 'x'>>;
+   using parse_groups = STFDUX::parse_groups;
+};
+
+
+//
+// Move to/from SPR
+//
+struct MCRF {
+   using lookup_key = cts<'m', 'c', 'r', 'f'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<19, 0, 6>(),
+                                                'm', 'c', 'r', 'f'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<CR_PARSE<6>>,
+                                   REQ_ARG_FINAL<CR_PARSE<11>>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MCRFS {
+   using lookup_key = cts<'m', 'c', 'r', 'f', 's'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<63, 0, 6>() | shift<64, 21, 10>(),
+                                                'm', 'c', 'r', 'f', 's'>>;
+   using parse_groups = MCRF::parse_groups;
+};
+
+struct MCRXR {
+   using lookup_key = cts<'m', 'c', 'r', 'x', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<512, 21, 10>(),
+                                                'm', 'c', 'r', 'x', 'r'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_FINAL<CR_PARSE<6>>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MFCR {
+   using lookup_key = cts<'m', 'f', 'c', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<19, 21, 10>(),
+                                                'm', 'f', 'c', 'r'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_FINAL<RD_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MFFS {
+   using lookup_key = cts<'m', 'f', 'f', 's'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<63, 0, 6>() | shift<583, 21, 10>(),
+                                                'm', 'f', 'f', 's'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_FINAL<FD_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MFMSR {
+   using lookup_key = cts<'m', 'f', 'm', 's', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<83, 21, 10>(),
+                                                'm', 'f', 'm', 's', 'r'>>;
+   using parse_groups = MFCR::parse_groups;
+};
+
+struct MFSPR {
+   using lookup_key = cts<'m', 'f', 's', 'p', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<339, 21, 10>(),
+                                                'm', 'f', 's', 'p', 'r'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_FINAL<PARSE_ANY<SPR_IMM_PARSE<11>, SPR_PARSE<11>>>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MFLR {
+   using lookup_key = cts<'m', 'f', 'l', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<339, 21, 10>() |
+                                                shift<0b0000100000, 11, 10>(),
+                                                'm', 'f', 'l', 'r'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_FINAL<RD_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MFCTR {
+   using lookup_key = cts<'m', 'f', 'c', 't', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<339, 21, 10>() |
+                                                shift<0b0100000000, 11, 10>(),
+                                                'm', 'f', 'c', 't', 'r'>>;
+   using parse_groups = MFLR::parse_groups;
+};
+
+struct MFXER {
+   using lookup_key = cts<'m', 'f', 'x', 'e', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<339, 21, 10>() |
+                                                shift<0b0100100000, 11, 10>(),
+                                                'm', 'f', 'x', 'e', 'r'>>;
+};
+
+struct MTCRF {
+   using lookup_key = cts<'m', 't', 'c', 'r', 'f'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<144, 21, 10>(),
+                                                'm', 't', 'c', 'r', 'f'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<UIMM_PARSE<12, 8>>,
+                                   REQ_ARG_FINAL<RS_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MTCR {
+   using lookup_key = cts<'m', 't', 'c', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<144, 21, 10>() |
+                                                shift<0xff, 12, 8>(),
+                                                'm', 't', 'c', 'r'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_FINAL<RS_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MTMSR {
+   using lookup_key = cts<'m', 't', 'm', 's', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<146, 21, 10>(),
+                                                'm', 't', 'm', 's', 'r'>>;
+
+   using parse_groups = MTCR::parse_groups;
+};
+
+struct MTSPR {
+   using lookup_key = cts<'m', 't', 's', 'p', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<467, 21, 10>(),
+                                                'm', 't', 's', 'p', 'r'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_FINAL<PARSE_ANY<SPR_IMM_PARSE<11>, SPR_PARSE<11>>>,
+                                   REQ_ARG_COMMA<RS_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MTLR {
+   using lookup_key = cts<'m', 't', 'l', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<467, 21, 10>() |
+                                                shift<0b0000100000, 11, 10>(),
+                                                'm', 't', 'l', 'r'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_FINAL<RS_PARSE>,
+                                   TERMINATION_PARSE>;
+};
+
+struct MTCTR {
+   using lookup_key = cts<'m', 't', 'c', 't', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<467, 21, 10>() |
+                                                shift<0b0100000000, 11, 10>(),
+                                                'm', 't', 'c', 't', 'r'>>;
+   using parse_groups = MTLR::parse_groups;
+};
+
+struct MTXER {
+   using lookup_key = cts<'m', 't', 'x', 'e', 'r'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<31, 0, 6>() | shift<467, 21, 10>() |
+                                                shift<0b0100100000, 11, 10>(),
+                                                'm', 't', 'x', 'e', 'r'>>;
+   using parse_groups = MTLR::parse_groups;
+};
+
+
+//
+// Bit manipulation instructions
+//
+struct RLWIMI {
+   using lookup_key = cts<'r', 'l', 'w', 'i', 'm', 'i'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<20, 0, 6>(),
+                                                'r', 'l', 'w', 'i', 'm', 'i'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RS_PARSE>,
+                                   REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_COMMA<UIMM_PARSE<16, 5>>,
+                                   REQ_ARG_COMMA<UIMM_PARSE<21, 5>>,
+                                   REQ_ARG_FINAL<UIMM_PARSE<26, 5>>,
+                                   TERMINATION_PARSE>;
+};
+
+struct RLWINM {
+   using lookup_key = cts<'r', 'l', 'w', 'i', 'n', 'm'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<21, 0, 6>(),
+                                                'r', 'l', 'w', 'i', 'n', 'm'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+   using parse_groups = RLWIMI::parse_groups;
+};
+
+struct RLWNM {
+   using lookup_key = cts<'r', 'l', 'w', 'n', 'm'>;
+   using match_groups = std::tuple<STRING_MATCH<shift<23, 0, 6>(),
+                                                'r', 'l', 'w', 'n', 'm'>,
+                                   CHARACTER_BIT_MATCH<31, '.'>>;
+   using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
+                                   REQ_ARG_COMMA<RS_PARSE>,
+                                   REQ_ARG_COMMA<RA_PARSE>,
+                                   REQ_ARG_COMMA<RB_PARSE>,
+                                   REQ_ARG_COMMA<UIMM_PARSE<21, 5>>,
+                                   REQ_ARG_FINAL<UIMM_PARSE<26, 5>>,
+                                   TERMINATION_PARSE>;
+};
+
+
 template <typename MG0, typename... MG, char... c>
 constexpr bool run_matchgroups(std::tuple<MG0, MG...>, cts<c...>) {
    if constexpr (sizeof...(MG) == 0) {
@@ -1319,56 +2093,73 @@ constexpr uint32_t parse_instr_tuple(std::tuple<Inst0, InstList...>, cts<c...>) 
 
 template <char... c>
 constexpr uint32_t parse(cts<c...>) {
-//   using instr_list =
-//      std::tuple<
-//                 // RRIA
-//                 ANDI_DOT, ANDIS_DOT,
-//                 // RRID
-//                 ADDI, ADDIC, ADDIC_DOT, ADDIS,
-//                 // RRRA
-//                 AND, ANDC, EQV, OR,
-//                 // RRRD
-//                 ADD, ADDC, ADDE, DIVW, DIVWU,
-//                 // RR0A
-//                 CNTLZW, EXTSB, EXTSH,
-//                 // RR0D
-//                 ADDME, ADDZE,
-//                 // CCC
-//                 CRAND, CRANDC, CREQV, CRNAND, CRNOR, CROR, CRORC, CRXOR,
-//                 // F0FD
-//                 FABS, FCTIW, FCTIWZ, FMR, FNABS, FNEG, FRES, FRSP, FRSQRTE,
-//                 // FFF0D
-//                 FADD, FADDS, FDIV, FDIVS, FSUB, FSUBS,
-//                 // FF0FD
-//                 FMUL, FMULS,
-//                 // FFFFD
-//                 FMADD, FMADDS, FMSUB, FMSUBS, FNMADD, FNMADDS, FNMSUB, FNMSUBS, FSEL,
-//                 // Float compare
-//                 FCMPO, FCMPU,
-//                 // Branch
-//                 BRANCH, BRANCH_COND, BEQ, BNE, BLT, BGE, BGT, BLE,
-//                 // Branch CTR
-//                 BRANCH_CTR_COND, BCTR, BEQCTR, BNECTR, BLTCTR, BGECTR, BGTCTR, BLECTR,
-//                 // Branch LR
-//                 BRANCH_LR_COND, BLR, BEQLR, BNELR, BLTLR, BGELR, BGTLR, BLELR,
-//                 // Compare
-//                 CMP, CMPI, CMPL, CMPLI, CMPW, CMPWI, CMPLW, CMPLWI
-//                 >;
-//   return parse_instr_tuple(instr_list {}, cts<c...> {});
+#ifdef _USE_LINEAR_SEARCH_PARSE
+   using instr_list =
+      std::tuple<
+                 // RRIA
+                 ANDI_DOT, ANDIS_DOT, ORI, ORIS, XORI, XORIS, NOP,
+                 // RRID
+                 ADDI, ADDIC, ADDIC_DOT, ADDIS, MULLI, SUBFIC,
+                 // RRRA
+                 AND, ANDC, EQV, OR, NAND, NOR, ORC, SLW, SRAW, SRW, STBUX, STBX,
+                 STHBRX, STHUX, STHX, STWBRX, STWUX, STWX, XOR,
+                 // RRRD
+                 ADD, ADDC, ADDE, DIVW, DIVWU, LBZUX, LBZX, LHAUX, LHAX, LHBRX,
+                 LHZUX, LHZX, LWBRX, LWZUX, LWZX, MULHW, MULLW, SUBF, SUBFC, SUBFE,
+                 SUB, SUBC,
+                 // RR0A
+                 CNTLZW, EXTSB, EXTSH, SRAWI,
+                 // RR0D
+                 ADDME, ADDZE, NEG, SUBFME, SUBFZE,
+                 // CCC
+                 CRAND, CRANDC, CREQV, CRNAND, CRNOR, CROR, CRORC, CRXOR,
+                 // F0FD
+                 FABS, FCTIW, FCTIWZ, FMR, FNABS, FNEG, FRES, FRSP, FRSQRTE,
+                 // FFF0D
+                 FADD, FADDS, FDIV, FDIVS, FSUB, FSUBS,
+                 // FF0FD
+                 FMUL, FMULS,
+                 // FFFFD
+                 FMADD, FMADDS, FMSUB, FMSUBS, FNMADD, FNMADDS, FNMSUB, FNMSUBS, FSEL,
+                 // Float compare
+                 FCMPO, FCMPU,
+                 // Branch
+                 BRANCH, BRANCH_COND, BEQ, BNE, BLT, BGE, BGT, BLE,
+                 // Branch CTR
+                 BRANCH_CTR_COND, BCTR, BEQCTR, BNECTR, BLTCTR, BGECTR, BGTCTR, BLECTR,
+                 // Branch LR
+                 BRANCH_LR_COND, BLR, BEQLR, BNELR, BLTLR, BGELR, BGTLR, BLELR,
+                 // Compare
+                 CMP, CMPI, CMPL, CMPLI, CMPW, CMPWI, CMPLW, CMPLWI,
+                 // Memory
+                 LBZ, LBZU, LHA, LHAU, LHZ, LHZU, LMW, LWZ, LWZU, STB, STBU, STH,
+                 STHU, STMW, STW, STWU, LFD, LFDU, LFDUX, LFDX, LFS, LFSU, LFSUX,
+                 LFSX, STFD, STFDU, STFDUX, STFDX, STFS, STFSU, STFSUX, STFSX,
+                 // Move to/from SPR
+                 MCRF, MCRFS, MCRXR, MFCR, MFFS, MFMSR, MFSPR, MFLR, MFCTR, MFXER,
+                 MTCRF, MTCR, MTMSR, MTSPR, MTLR, MTCTR, MTXER,
+                 // Bit manipulation
+                 RLWIMI, RLWINM, RLWNM
+                 >;
+   return parse_instr_tuple(instr_list {}, cts<c...> {});
+#else 
    constexpr auto instr_list_trie =
       create_trie<
                   // RRIA
-                  ANDI_DOT, ANDIS_DOT,
+                  ANDI_DOT, ANDIS_DOT, ORI, ORIS, XORI, XORIS, NOP,
                   // RRID
-                  ADDI, ADDIC, ADDIC_DOT, ADDIS,
+                  ADDI, ADDIC, ADDIC_DOT, ADDIS, MULLI, SUBFIC,
                   // RRRA
-                  AND, ANDC, EQV, OR,
+                  AND, ANDC, EQV, OR, NAND, NOR, ORC, SLW, SRAW, SRW, STBUX, STBX,
+                  STHBRX, STHUX, STHX, STWBRX, STWUX, STWX, XOR,
                   // RRRD
-                  ADD, ADDC, ADDE, DIVW, DIVWU,
+                  ADD, ADDC, ADDE, DIVW, DIVWU, LBZUX, LBZX, LHAUX, LHAX, LHBRX,
+                  LHZUX, LHZX, LWBRX, LWZUX, LWZX, MULHW, MULLW, SUBF, SUBFC, SUBFE,
+                  SUB, SUBC,
                   // RR0A
-                  CNTLZW, EXTSB, EXTSH,
+                  CNTLZW, EXTSB, EXTSH, SRAWI,
                   // RR0D
-                  ADDME, ADDZE,
+                  ADDME, ADDZE, NEG, SUBFME, SUBFZE,
                   // CCC
                   CRAND, CRANDC, CREQV, CRNAND, CRNOR, CROR, CRORC, CRXOR,
                   // F0FD
@@ -1388,17 +2179,19 @@ constexpr uint32_t parse(cts<c...>) {
                   // Branch LR
                   BRANCH_LR_COND, BLR, BEQLR, BNELR, BLTLR, BGELR, BGTLR, BLELR,
                   // Compare
-                  CMP, CMPI, CMPL, CMPLI, CMPW, CMPWI, CMPLW, CMPLWI
+                  CMP, CMPI, CMPL, CMPLI, CMPW, CMPWI, CMPLW, CMPLWI,
+                  // Memory
+                  LBZ, LBZU, LHA, LHAU, LHZ, LHZU, LMW, LWZ, LWZU, STB, STBU, STH,
+                  STHU, STMW, STW, STWU, LFD, LFDU, LFDUX, LFDX, LFS, LFSU, LFSUX,
+                  LFSX, STFD, STFDU, STFDUX, STFDX, STFS, STFSU, STFSUX, STFSX,
+                  // Move to/from SPR
+                  MCRF, MCRFS, MCRXR, MFCR, MFFS, MFMSR, MFSPR, MFLR, MFCTR, MFXER,
+                  MTCRF, MTCR, MTMSR, MTSPR, MTLR, MTCTR, MTXER,
+                  // Bit manipulation
+                  RLWIMI, RLWINM, RLWNM
                   >();
-
                   
-      create_trie<ADDI, ADDIC, ADDIC_DOT, ADDIS, ANDI_DOT, ANDIS_DOT,
-                  ADD, ADDC, ADDE, AND, ANDC, OR,
-                  ADDME, ADDZE,
-                  BRANCH, BRANCH_COND, BEQ, BNE, BLT, BGE, BGT, BLE,
-                  BRANCH_CTR_COND, BCTR, BEQCTR, BNECTR, BLTCTR, BGECTR, BGTCTR, BLECTR,
-                  BRANCH_LR_COND, BLR, BEQLR, BNELR, BLTLR, BGELR, BGTLR, BLELR,
-                  CMP, CMPI, CMPL, CMPLI, CMPW, CMPWI, CMPLW, CMPLWI>();
    return parse_instr_trie(cts<c...> {}, instr_list_trie);
+#endif
 }
 }

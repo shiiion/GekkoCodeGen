@@ -34,6 +34,15 @@ struct nth_char<0, c0> {
    constexpr static char val = c0;
 };
 
+template <char c>
+constexpr char to_lower() {
+   if constexpr (c >= 'A' && c <= 'Z') {
+      return c - 'A' + 'a';
+   } else {
+      return c;
+   }
+};
+
 
 //
 // cts - compile time string
@@ -71,10 +80,29 @@ struct cts {
       }
    }
 
+   template <std::size_t idx, char... c1>
+   static constexpr bool streq_case_impl() {
+      if constexpr (idx == sizeof...(c)) {
+         return true;
+      } else {
+         return (to_lower<nth_char<idx, c...>::val>() == to_lower<nth_char<idx, c1...>::val>()) &&
+                (streq_case_impl<idx + 1, c1...>());
+      }
+   }
+
    template <char... c1>
    static constexpr bool streq(cts<c1...>) {
       if constexpr (sizeof...(c) == sizeof...(c1)) {
          return streq_impl<0, c1...>();
+      } else {
+         return false;
+      }
+   }
+
+   template <char... c1>
+   static constexpr bool streq_case(cts<c1...>) {
+      if constexpr (sizeof...(c) == sizeof...(c1)) {
+         return streq_case_impl<0, c1...>();
       } else {
          return false;
       }
@@ -145,11 +173,11 @@ struct string_include<len> {
 };
 
 template <typename String, size_t i = 0>
-constexpr auto from_cstr() {
+constexpr auto from_cstr_lower() {
    if constexpr (String::str()[i] == '\0') {
       return cts<>{};
    } else {
-      return typename decltype(from_cstr<String, i + 1>())::prepend<String::str()[i]>{};
+      return typename decltype(from_cstr_lower<String, i + 1>())::prepend<to_lower<String::str()[i]>()>{};
    }
 }
 
@@ -279,5 +307,5 @@ constexpr std::optional<uint32_t> try_atoi_full(cts<c...>) {
 #define GEN_STR(gs) \
    []() { \
       struct type_gen { static constexpr const char* str() { return gs; } }; \
-      return gekko_code_gen::from_cstr<type_gen>(); \
+      return gekko_code_gen::from_cstr_lower<type_gen>(); \
    }()
