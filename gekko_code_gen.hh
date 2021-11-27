@@ -10,6 +10,11 @@
 #include <type_traits>
 
 namespace gekko_code_gen {
+template <typename T>
+constexpr void force_failure(T) {
+   static_assert(std::is_same_v<std::decay_t<T>, T&>, "See error for T");
+}
+
 enum class ParseGroupType {
    SEPARATOR,
    PARSER,
@@ -201,9 +206,10 @@ struct UIMM_PARSE {
       constexpr auto res = try_atoi_full(cts<c...> {});
       if constexpr (res) {
          constexpr uint32_t val = res.value();
-         constexpr bool valid = (1 << width) > val;
-         if constexpr (valid) {
-            constexpr uint32_t align_mask = ~((1 << align) - 1);
+         constexpr uint32_t align_mask = ~((1 << align) - 1);
+         if constexpr (width == 32) {
+            return shift<val & align_mask, off, width>();
+         } else if constexpr ((1 << width) > val) {
             return shift<val & align_mask, off, width>();
          } else {
             return std::nullopt;
@@ -225,10 +231,34 @@ struct SIMM_PARSE {
          constexpr int32_t val = static_cast<int32_t>(res.value());
          constexpr int32_t max = static_cast<int32_t>(1 << (width - 1)) - 1;
          constexpr int32_t min = -(max + 1);
-         constexpr bool valid = (val >= min) && (val <= max);
-         if constexpr (valid) {
+         if constexpr ((val >= min) && (val <= max)) {
             constexpr uint32_t align_mask = ~((1 << align) - 1);
             return shift<static_cast<uint32_t>(val) & align_mask, off, width>();
+         } else {
+            return std::nullopt;
+         }
+      } else {
+         return std::nullopt;
+      }
+   }
+};
+
+template <uint32_t off, uint32_t width>
+struct BRANCH_REL_PARSE {
+   constexpr static ParseGroupType p_type = ParseGroupType::PARSER;
+
+   template <char... c>
+   constexpr static std::optional<uint32_t> parse(cts<c...>) {
+      using from = decltype(CHARACTER_SEPARATOR<'~'>::clipto(cts<c...> {}));
+      using to = typename decltype(CHARACTER_SEPARATOR<'~'>::seekto(cts<c...> {}))::trim<1>;
+      constexpr auto val_from = UIMM_PARSE<0, 32, 2>::parse(from {});
+      constexpr auto val_to = UIMM_PARSE<0, 32, 2>::parse(to {});
+      if constexpr (val_from && val_to) {
+         constexpr int32_t dist = static_cast<int32_t>(val_to.value() - val_from.value());
+         constexpr int32_t max = static_cast<int32_t>(1 << (width - 1)) - 1;
+         constexpr int32_t min = -(max + 1);
+         if constexpr ((dist >= min) && (dist <= max)) {
+            return shift<static_cast<uint32_t>(dist), off, width>();
          } else {
             return std::nullopt;
          }
@@ -1241,7 +1271,7 @@ struct BRANCH {
                                    CHARACTER_BIT_MATCH<31, 'l'>,
                                    CHARACTER_BIT_MATCH<30, 'a'>>;
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   REQ_ARG_FINAL<SIMM_PARSE<6, 26, 2>>,
+                                   REQ_ARG_FINAL<PARSE_ANY<SIMM_PARSE<6, 26, 2>, BRANCH_REL_PARSE<6, 26>>>,
                                    TERMINATION_PARSE>;
 };
 
@@ -1253,13 +1283,13 @@ struct BRANCH_COND {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_COMMA<UIMM_PARSE<6, 5>>,
                                    REQ_ARG_COMMA<PARSE_ANY<UIMM_PARSE<11, 5>, CR0_BIT_PARSE<11, 5>>>,
-                                   REQ_ARG_FINAL<SIMM_PARSE<16, 16, 2>>,
+                                   REQ_ARG_FINAL<PARSE_ANY<SIMM_PARSE<16, 16, 2>, BRANCH_REL_PARSE<16, 16>>>,
                                    TERMINATION_PARSE>;
 };
 
 struct Bxx_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
-                                   REQ_ARG_FINAL<SIMM_PARSE<16, 16, 2>>,
+                                   REQ_ARG_FINAL<PARSE_ANY<SIMM_PARSE<16, 16, 2>, BRANCH_REL_PARSE<16, 16>>>,
                                    TERMINATION_PARSE>;
 };
 
@@ -2159,11 +2189,6 @@ constexpr uint32_t parse_instr_tuple(std::tuple<Inst0, InstList...>, cts<c...>) 
    } else {
       return 0;
    }
-}
-
-template <typename T>
-constexpr void force_failure(T) {
-   static_assert(std::is_same_v<std::decay_t<T>, T&>, "See error for T");
 }
 
 template <char... c>

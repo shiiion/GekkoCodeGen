@@ -252,7 +252,7 @@ constexpr std::optional<uint32_t> try_decimal_atoi(cts<c...>) {
       constexpr char c0 = nth_char<idx, c...>::val;
       if constexpr (c0 >= '0' && c0 <= '9') {
          constexpr uint32_t cur_shifted = init * 10 + (c0 - '0');
-         return decimal_atoi<cur_shifted, idx + 1, c...>(cts<c...>{});
+         return try_decimal_atoi<cur_shifted, idx + 1, c...>(cts<c...>{});
       } else {
          return std::nullopt;
       }
@@ -267,13 +267,13 @@ constexpr std::optional<uint32_t> try_hex_atoi(cts<c...>) {
       constexpr char c0 = nth_char<idx, c...>::val;
       if constexpr (c0 >= '0' && c0 <= '9') {
          constexpr uint32_t cur_shifted = init * 16 + (c0 - '0');
-         return hex_atoi<cur_shifted, idx + 1, c...>(cts<c...>{});
+         return try_hex_atoi<cur_shifted, idx + 1, c...>(cts<c...>{});
       } else if constexpr (c0 >= 'a' && c0 <= 'f') {
          constexpr uint32_t cur_shifted = init * 16 + (c0 - 'a' + 10);
-         return hex_atoi<cur_shifted, idx + 1, c...>(cts<c...>{});
+         return try_hex_atoi<cur_shifted, idx + 1, c...>(cts<c...>{});
       } else if constexpr (c0 >= 'A' && c0 <= 'F') {
          constexpr uint32_t cur_shifted = init * 16 + (c0 - 'A' + 10);
-         return hex_atoi<cur_shifted, idx + 1, c...>(cts<c...>{});
+         return try_hex_atoi<cur_shifted, idx + 1, c...>(cts<c...>{});
       } else {
          return std::nullopt;
       }

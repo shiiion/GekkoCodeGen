@@ -185,6 +185,8 @@ int main() {
    static_assert(0x48001235 == gekko_code_gen::parse(GEN_STR("bl 0x1234")));
    static_assert(0x48001236 == gekko_code_gen::parse(GEN_STR("ba 0x1234")));
    static_assert(0x48001237 == gekko_code_gen::parse(GEN_STR("bla 0x1234")));
+   static_assert(0x48004004 == gekko_code_gen::parse(GEN_STR("b 0x80004000~0x80008004")));
+   static_assert(0x4bffc004 == gekko_code_gen::parse(GEN_STR("b 0x80008000~0x80004004")));
    static_assert(0x41821234 == gekko_code_gen::parse(GEN_STR("bc 12, eq, 0x1234")));
    static_assert(0x41821235 == gekko_code_gen::parse(GEN_STR("bcl 12, eq, 0x1234")));
    static_assert(0x41821236 == gekko_code_gen::parse(GEN_STR("bca 12, eq, 0x1234")));
