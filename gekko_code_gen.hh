@@ -2301,3 +2301,5 @@ constexpr uint32_t parse(cts<c...>) {
 #endif
 }
 }
+
+#define GEKKO_ASM(s) gekko_code_gen::parse(GEN_STR(s))

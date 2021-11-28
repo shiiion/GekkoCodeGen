@@ -2,5 +2,5 @@
 #include <iostream>
 
 int main() {
-   gekko_code_gen::parse(GEN_STR("andi. r3, r4, 0x1000"));
+   GEKKO_ASM("andi. r3, r4, 0x1000");
 }
