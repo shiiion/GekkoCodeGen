@@ -2103,7 +2103,6 @@ constexpr uint32_t get_match_data(cts<c...>) {
 
 template <typename MG0, typename... MG, char... c>
 constexpr auto eat_matchgroup(std::tuple<MG0, MG...>, cts<c...>) {
-   constexpr uint32_t MG0_val = MG0::match(cts<c...> {}) ? MG0::val : 0;
    if constexpr (sizeof...(MG) == 0) {
       return MG0::eat(cts<c...> {});
    } else {

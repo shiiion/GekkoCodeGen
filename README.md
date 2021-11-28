@@ -3,7 +3,7 @@
 Compile time single line assembler for PowerPC/Gekko architecture. Does not and will never support symbols or labels.
 
 Sample usage:
-```
+```cpp
 #include "gekko_code_gen.hh"
 
 int main() {
