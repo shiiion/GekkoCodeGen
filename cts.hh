@@ -289,14 +289,14 @@ constexpr std::optional<uint32_t> try_atoi_full(cts<c...>) {
       if constexpr (prefix.streq(cts<'0', 'x'>{})) {
          constexpr auto val = try_hex_atoi((typename cts<c...>::template trim<initial_trim + 2>) {});
          if constexpr (val) {
-            return (negate ? -(val.value()) : (val.value()));
+            return (negate ? static_cast<uint32_t>(-static_cast<int32_t>(val.value())) : (val.value()));
          } else {
             return std::nullopt;
          }
       } else {
          constexpr auto val = try_decimal_atoi(typename cts<c...>::template trim<initial_trim> {});
          if constexpr (val) {
-            return (negate ? -(val.value()) : (val.value()));
+            return (negate ? static_cast<uint32_t>(-static_cast<int32_t>(val.value())) : (val.value()));
          } else {
             return std::nullopt;
          }
@@ -304,7 +304,7 @@ constexpr std::optional<uint32_t> try_atoi_full(cts<c...>) {
    } else {
       constexpr auto val = try_decimal_atoi(typename cts<c...>::template trim<initial_trim> {});
       if constexpr (val) {
-         return (negate ? -(val.value()) : (val.value()));
+         return (negate ? static_cast<uint32_t>(-static_cast<int32_t>(val.value())) : (val.value()));
       } else {
          return std::nullopt;
       }
