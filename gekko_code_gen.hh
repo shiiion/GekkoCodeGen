@@ -36,7 +36,7 @@ struct WHITESPACE_SEPARATOR {
       } else {
          constexpr char c0 = nth_char<0, c...>::val;
          if constexpr (c0 == ' ' || c0 == '\t') {
-            return eat(typename cts<c...>::trim<1> {});
+            return eat(typename cts<c...>::template trim<1> {});
          } else {
             return cts<c...> {};
          }
@@ -50,7 +50,7 @@ struct WHITESPACE_SEPARATOR {
       } else {
          constexpr char chI = nth_char<idx, c...>::val;
          if constexpr (chI == ' ' || chI == '\t') {
-            return typename cts<c...>::substr<0, idx> {};
+            return typename cts<c...>::template substr<0, idx> {};
          } else {
             return clipto<idx + 1>(cts<c...> {});
          }
@@ -64,7 +64,7 @@ struct WHITESPACE_SEPARATOR {
       } else {
          constexpr char chI = nth_char<idx, c...>::val;
          if constexpr (chI == ' ' || chI == '\t') {
-            return typename cts<c...>::trim<idx> {};
+            return typename cts<c...>::template trim<idx> {};
          } else {
             return seekto<idx + 1>(cts<c...> {});
          }
@@ -83,7 +83,7 @@ struct CHARACTER_SEPARATOR {
       static_assert(!decltype(skip0)::is_empty, "Failed to parse expected character");
       if constexpr (!decltype(skip0)::is_empty) {
          static_assert(get_char<0>(skip0) == Ec, "Failed to parse expected character");
-         return WHITESPACE_SEPARATOR::eat(typename decltype(skip0)::trim<1> {});
+         return WHITESPACE_SEPARATOR::eat(typename decltype(skip0)::template trim<1> {});
       } else {
          return cts<> {};
       }
@@ -96,7 +96,7 @@ struct CHARACTER_SEPARATOR {
       } else {
          constexpr char chI = nth_char<idx, c...>::val;
          if constexpr (chI == ' ' || chI == '\t' || chI == Ec) {
-            return typename cts<c...>::substr<0, idx> {};
+            return typename cts<c...>::template substr<0, idx> {};
          } else {
             return clipto<idx + 1>(cts<c...> {});
          }
@@ -110,7 +110,7 @@ struct CHARACTER_SEPARATOR {
       } else {
          constexpr char chI = nth_char<idx, c...>::val;
          if constexpr (chI == ' ' || chI == '\t' || chI == Ec) {
-            return typename cts<c...>::trim<idx> {};
+            return typename cts<c...>::template trim<idx> {};
          } else {
             return seekto<idx + 1>(cts<c...> {});
          }
@@ -143,8 +143,8 @@ struct REG_PARSE {
    template <char... c>
    constexpr static std::optional<uint32_t> parse(cts<c...>) {
       if constexpr (sizeof...(c) > sizeof...(header)) {
-         if constexpr (cts<header...>::streq(typename cts<c...>::substr<0, sizeof...(header)> {})) {
-            constexpr auto regnum = try_decimal_atoi((typename cts<c...>::trim<sizeof...(header)>) {});
+         if constexpr (cts<header...>::streq(typename cts<c...>::template substr<0, sizeof...(header)> {})) {
+            constexpr auto regnum = try_decimal_atoi((typename cts<c...>::template trim<sizeof...(header)>) {});
             if constexpr (regnum) {
                if constexpr (regnum.value() < (1 << width)) {
                   return shift<regnum.value(), off, width>();
@@ -250,9 +250,9 @@ struct NEGATE_SIMM_PARSE {
    template <char... c>
    constexpr static std::optional<uint32_t> parse(cts<c...>) {
       if constexpr (nth_char<0, c...>::val == '-') {
-         return SIMM_PARSE<off, width, align>::parse(typename cts<c...>::trim<1> {});
+         return SIMM_PARSE<off, width, align>::parse(typename cts<c...>::template trim<1> {});
       } else {
-         return SIMM_PARSE<off, width, align>::parse(typename cts<c...>::prepend<'-'> {});
+         return SIMM_PARSE<off, width, align>::parse(typename cts<c...>::template prepend<'-'> {});
       }
    }
 };
@@ -264,7 +264,7 @@ struct BRANCH_REL_PARSE {
    template <char... c>
    constexpr static std::optional<uint32_t> parse(cts<c...>) {
       using from = decltype(CHARACTER_SEPARATOR<'~'>::clipto(cts<c...> {}));
-      using to = typename decltype(CHARACTER_SEPARATOR<'~'>::seekto(cts<c...> {}))::trim<1>;
+      using to = typename decltype(CHARACTER_SEPARATOR<'~'>::seekto(cts<c...> {}))::template trim<1>;
       constexpr auto val_from = UIMM_PARSE<0, 32, 2>::parse(from {});
       constexpr auto val_to = UIMM_PARSE<0, 32, 2>::parse(to {});
       if constexpr (val_from && val_to) {
@@ -432,7 +432,7 @@ struct CHARACTER_MATCH {
    template <char... c>
    constexpr static auto eat(cts<c...>) {
       if constexpr (match(cts<c...> {})) {
-         return typename cts<c...>::trim<1> {};
+         return typename cts<c...>::template trim<1> {};
       } else {
          return cts<c...> {};
       }
@@ -448,13 +448,13 @@ template <uint32_t on_match, char... c>
 struct STRING_MATCH {
    template <char... c1>
    constexpr static bool match(cts<c1...>) {
-      return cts<c...>::streq(typename cts<c1...>::substr<0, sizeof...(c)> {});
+      return cts<c...>::streq(typename cts<c1...>::template substr<0, sizeof...(c)> {});
    }
 
    template <char... c1>
    constexpr static auto eat(cts<c1...>) {
       if constexpr (match(cts<c1...> {})) {
-         return typename cts<c1...>::trim<sizeof...(c)> {};
+         return typename cts<c1...>::template trim<sizeof...(c)> {};
       } else {
          return cts<c1...> {};
       }
@@ -467,7 +467,7 @@ struct STRING_MATCH {
 //
 // Reg-Reg-IMM instructions (S-A, A destination)
 //
-template <template <uint32_t off, uint32_t width> typename imm_parse>
+template <template <uint32_t off, uint32_t width, uint32_t align = 0> typename imm_parse>
 struct RRIA_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_COMMA<RA_PARSE>,
@@ -522,7 +522,7 @@ struct NOP {
 //
 // Reg-Reg-IMM instructions (D-A, D destination)
 //
-template <template <uint32_t off, uint32_t width> typename imm_parse>
+template <template <uint32_t off, uint32_t width, uint32_t align = 0> typename imm_parse>
 struct RRID_FAMILY {
    using parse_groups = std::tuple<WHITESPACE_SEPARATOR,
                                    REQ_ARG_COMMA<RD_PARSE>,

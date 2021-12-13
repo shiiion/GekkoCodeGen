@@ -69,11 +69,11 @@ constexpr auto build_trie(cts<c...>) {
       return trie_node<_cur_key, _target_val> {};
    } else {
       constexpr auto new_subnode =
-         build_trie<nth_char<0, c...>::val, _target_val>(typename cts<c...>::trim<1> {});
+         build_trie<nth_char<0, c...>::val, _target_val>(typename cts<c...>::template trim<1> {});
       return trie_node<_cur_key,
                        lookup_failure,
                        std::decay_t<decltype(build_trie<nth_char<0, c...>::val, _target_val>(
-                                             typename cts<c...>::trim<1> {}))>> {};
+                                             typename cts<c...>::template trim<1> {}))>> {};
    }
 }
 
@@ -87,11 +87,11 @@ constexpr auto insert_trie(trie_node<_key, _val, Subnode...>, cts<c...>) {
       constexpr auto subnode_match = find_match<c0, Subnode...>();
       if constexpr (std::is_same_v<std::decay_t<decltype(subnode_match)>, lookup_failure>) {
          constexpr auto new_subnode =
-            build_trie<c0, _insert_val>(typename cts<c...>::trim<1> {});
+            build_trie<c0, _insert_val>(typename cts<c...>::template trim<1> {});
          return prepend<std::decay_t<decltype(new_subnode)>>(trie_node<_key, _val, Subnode...>());
       } else {
          constexpr auto updated_subnode =
-            insert_trie<_insert_val>(subnode_match, typename cts<c...>::trim<1> {});
+            insert_trie<_insert_val>(subnode_match, typename cts<c...>::template trim<1> {});
          return replace_subnode<std::decay_t<decltype(updated_subnode)>, _key, _val, Subnode...>();
       }
    }
@@ -117,7 +117,7 @@ constexpr auto lookup_trie(cts<c...>, trie_node<_key, _val, Subnode...>) {
       if constexpr (std::is_same_v<std::decay_t<decltype(subnode_match)>, lookup_failure>) {
          return lookup_failure {};
       } else {
-         return lookup_trie(typename cts<c...>::trim<1> {}, subnode_match);
+         return lookup_trie(typename cts<c...>::template trim<1> {}, subnode_match);
       }
    }
 }
@@ -132,7 +132,7 @@ constexpr auto lookup_nearest_trie(cts<c...>, trie_node<_key, _val, Subnode...>)
          return _val {};
       } else {
          constexpr auto longest_submatch =
-            lookup_nearest_trie(typename cts<c...>::trim<1> {}, subnode_match);
+            lookup_nearest_trie(typename cts<c...>::template trim<1> {}, subnode_match);
          if constexpr (std::is_same_v<std::decay_t<decltype(longest_submatch)>, lookup_failure>) {
             return _val {};
          } else {

@@ -62,7 +62,7 @@ struct cts {
    using trim = typename string_trim<off, c...>::type;
 
    template <std::size_t off, std::size_t len>
-   using substr = typename trim<off>::include<len>;
+   using substr = typename trim<off>::template include<len>;
 
    template <std::size_t len>
    using include = typename string_include<len, c...>::type;
@@ -149,7 +149,7 @@ struct string_trim<off> {
 //
 template <std::size_t len, char c0, char c1, char... c>
 struct string_include<len, c0, c1, c...> {
-   using type = typename string_include<len - 1, c1, c...>::type::prepend<c0>;
+   using type = typename string_include<len - 1, c1, c...>::type::template prepend<c0>;
 };
 
 template <char c0, char c1, char... c>
@@ -177,7 +177,7 @@ constexpr auto from_cstr_lower() {
    if constexpr (String::str()[i] == '\0') {
       return cts<>{};
    } else {
-      return typename decltype(from_cstr_lower<String, i + 1>())::prepend<to_lower<String::str()[i]>()>{};
+      return typename decltype(from_cstr_lower<String, i + 1>())::template prepend<to_lower<String::str()[i]>()>{};
    }
 }
 
@@ -230,16 +230,16 @@ constexpr uint32_t atoi_full(cts<c...>) {
    constexpr bool negate = nth_char<0, c...>::val == '-';
    constexpr uint32_t initial_trim = negate ? 1 : 0;
    if constexpr (sizeof...(c) > 2) {
-      constexpr auto prefix = typename cts<c...>::substr<initial_trim, 2> {};
+      constexpr auto prefix = typename cts<c...>::template substr<initial_trim, 2> {};
       if constexpr (prefix.streq(cts<'0', 'x'>{})) {
-         constexpr uint32_t val = hex_atoi((typename cts<c...>::trim<initial_trim + 2>) {});
+         constexpr uint32_t val = hex_atoi((typename cts<c...>::template trim<initial_trim + 2>) {});
          return (negate ? -val : val);
       } else {
-         constexpr uint32_t val = decimal_atoi(typename cts<c...>::trim<initial_trim> {});
+         constexpr uint32_t val = decimal_atoi(typename cts<c...>::template trim<initial_trim> {});
          return (negate ? -val : val);
       }
    } else {
-      constexpr uint32_t val = decimal_atoi(typename cts<c...>::trim<initial_trim> {});
+      constexpr uint32_t val = decimal_atoi(typename cts<c...>::template trim<initial_trim> {});
       return (negate ? -val : val);
    }
 }
@@ -285,16 +285,16 @@ constexpr std::optional<uint32_t> try_atoi_full(cts<c...>) {
    constexpr bool negate = nth_char<0, c...>::val == '-';
    constexpr uint32_t initial_trim = negate ? 1 : 0;
    if constexpr (sizeof...(c) > 2) {
-      constexpr auto prefix = typename cts<c...>::substr<initial_trim, 2> {};
+      constexpr auto prefix = typename cts<c...>::template substr<initial_trim, 2> {};
       if constexpr (prefix.streq(cts<'0', 'x'>{})) {
-         constexpr auto val = try_hex_atoi((typename cts<c...>::trim<initial_trim + 2>) {});
+         constexpr auto val = try_hex_atoi((typename cts<c...>::template trim<initial_trim + 2>) {});
          if constexpr (val) {
             return (negate ? -(val.value()) : (val.value()));
          } else {
             return std::nullopt;
          }
       } else {
-         constexpr auto val = try_decimal_atoi(typename cts<c...>::trim<initial_trim> {});
+         constexpr auto val = try_decimal_atoi(typename cts<c...>::template trim<initial_trim> {});
          if constexpr (val) {
             return (negate ? -(val.value()) : (val.value()));
          } else {
@@ -302,7 +302,7 @@ constexpr std::optional<uint32_t> try_atoi_full(cts<c...>) {
          }
       }
    } else {
-      constexpr auto val = try_decimal_atoi(typename cts<c...>::trim<initial_trim> {});
+      constexpr auto val = try_decimal_atoi(typename cts<c...>::template trim<initial_trim> {});
       if constexpr (val) {
          return (negate ? -(val.value()) : (val.value()));
       } else {
