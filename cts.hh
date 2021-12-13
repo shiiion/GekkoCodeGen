@@ -232,7 +232,7 @@ constexpr uint32_t atoi_full(cts<c...>) {
    if constexpr (sizeof...(c) > 2) {
       constexpr auto prefix = typename cts<c...>::template substr<initial_trim, 2> {};
       if constexpr (prefix.streq(cts<'0', 'x'>{})) {
-         constexpr uint32_t val = hex_atoi((typename cts<c...>::template trim<initial_trim + 2>) {});
+         constexpr uint32_t val = hex_atoi(typename cts<c...>::template trim<initial_trim + 2> {});
          return (negate ? -val : val);
       } else {
          constexpr uint32_t val = decimal_atoi(typename cts<c...>::template trim<initial_trim> {});
@@ -287,7 +287,7 @@ constexpr std::optional<uint32_t> try_atoi_full(cts<c...>) {
    if constexpr (sizeof...(c) > 2) {
       constexpr auto prefix = typename cts<c...>::template substr<initial_trim, 2> {};
       if constexpr (prefix.streq(cts<'0', 'x'>{})) {
-         constexpr auto val = try_hex_atoi((typename cts<c...>::template trim<initial_trim + 2>) {});
+         constexpr auto val = try_hex_atoi(typename cts<c...>::template trim<initial_trim + 2> {});
          if constexpr (val) {
             return (negate ? static_cast<uint32_t>(-static_cast<int32_t>(val.value())) : (val.value()));
          } else {

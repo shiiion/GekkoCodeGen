@@ -144,7 +144,7 @@ struct REG_PARSE {
    constexpr static std::optional<uint32_t> parse(cts<c...>) {
       if constexpr (sizeof...(c) > sizeof...(header)) {
          if constexpr (cts<header...>::streq(typename cts<c...>::template substr<0, sizeof...(header)> {})) {
-            constexpr auto regnum = try_decimal_atoi((typename cts<c...>::template trim<sizeof...(header)>) {});
+            constexpr auto regnum = try_decimal_atoi(typename cts<c...>::template trim<sizeof...(header)> {});
             if constexpr (regnum) {
                if constexpr (regnum.value() < (1 << width)) {
                   return shift<regnum.value(), off, width>();
@@ -2212,7 +2212,11 @@ constexpr uint32_t parse_instr_tuple(std::tuple<Inst0, InstList...>, cts<c...>) 
 }
 
 template <char... c>
+#ifdef __cpp_consteval
+consteval uint32_t parse(cts<c...>) {
+#else
 constexpr uint32_t parse(cts<c...>) {
+#endif
 #ifdef _USE_LINEAR_SEARCH_PARSE
    using instr_list =
       std::tuple<
